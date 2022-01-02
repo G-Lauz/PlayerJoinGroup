@@ -1,0 +1,4 @@
+name: ${project.name}
+main: fr.freebuild.playerjoingroup.bungee.PlayerJoinGroup
+version: ${project.version}
+author: G-Lauz

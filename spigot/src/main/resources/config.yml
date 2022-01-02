@@ -1,0 +1,15 @@
+FirstJoinMessage: "&8&l[&a+&8]&f {playername} &6Bienvenue sur le serveur, tu es le {counter}ème joueur"
+JoinMessage: "&8[&a+&8]&f {playername}"
+QuitMessage: "&8[&c-&8]&f {playername}"
+PlayerCounter: 25009
+Firework:
+  ActivateOnJoin: true
+  Type: BALL_LARGE
+  Color:
+    R: 0
+    G: 255
+    B: 255
+  ColorFade:
+    R: 255
+    G: 0
+    B: 0

@@ -1,0 +1,6 @@
+name: ${project.name}
+main: fr.freebuild.playerjoingroup.spigot.PlayerJoinGroup
+version: ${project.version}
+author: G-Lauz
+api-version: 1.13
+description: Plugin that display custom message on player join
