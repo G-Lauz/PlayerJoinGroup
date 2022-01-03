@@ -29,25 +29,8 @@ public class PlayerSwitchListener extends ConnectionListener {
             // TODO remove logs?
             System.out.print(player.getName() + " switched from " + fromServer.getName() + " to " + player.getServer().getInfo().getName());
 
-            broadcastEvent(fromServer, player, EventType.LEAVE_SERVER_GROUP);
-            broadcastEvent(player.getServer().getInfo(), player, EventType.JOIN_SERVER_GROUP);
-        }
-    }
-
-    @EventHandler
-    public void on(ServerConnectEvent event) throws ServerGroupNotFoundException {
-        ProxiedPlayer player = event.getPlayer();
-        Server server = player.getServer();
-
-        if (server != null) {
-            ServerInfo fromServer = server.getInfo();
-            ServerInfo toServer = event.getTarget();
-
-            // TODO remove logs
-            System.out.print(player.getName() + " connect event from "+ fromServer.getName() + " to " + toServer.getName());
-
-//            broadcastEvent(fromServer, player, EventType.LEAVE_SERVER_GROUP);
-//            broadcastEvent(toServer, player, EventType.JOIN_SERVER_GROUP);
+            scheduledBroadcastEvent(fromServer, player, EventType.LEAVE_SERVER_GROUP, 1);
+            scheduledBroadcastEvent(player.getServer().getInfo(), player, EventType.JOIN_SERVER_GROUP, 1);
         }
     }
 }

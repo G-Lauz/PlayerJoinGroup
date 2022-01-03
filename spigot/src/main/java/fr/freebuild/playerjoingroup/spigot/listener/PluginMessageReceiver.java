@@ -61,9 +61,9 @@ public class PluginMessageReceiver implements PluginMessageListener {
     }
 
     private void onPlayerLeave(String data) {
-        Player player = getPlayer(UUID.fromString(data));
+        OfflinePlayer player = getOfflinePlayer(UUID.fromString(data));
         String message = Utils.getConfigString("QuitMessage");
-        message = Utils.format(message, FormatParam.PLAYER, player.getDisplayName());
+        message = Utils.format(message, FormatParam.PLAYER, player.getName());
         getServer().broadcastMessage(message);
     }
 

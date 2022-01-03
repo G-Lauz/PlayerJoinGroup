@@ -10,6 +10,12 @@ import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Listener;
 
+import java.util.Arrays;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 public abstract class ConnectionListener implements Listener {
 
     protected final PlayerJoinGroup plugin;
@@ -37,5 +43,20 @@ public abstract class ConnectionListener implements Listener {
                 .build();
 
         this.plugin.getMessager().broadcast(packet);
+    }
+
+    protected void scheduledBroadcastEvent(ServerInfo serverInfo, ProxiedPlayer player, EventType event, int delay) {
+        ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
+
+        service.schedule(() -> {
+            try {
+                this.broadcastEvent(serverInfo, player, event);
+            } catch (ServerGroupNotFoundException e) {
+                this.plugin.getLogger().severe(e.getMessage());
+                Arrays.stream(e.getStackTrace()).forEach(stackTraceElement -> {
+                    this.plugin.getLogger().severe(stackTraceElement.toString());
+                });
+            }
+        }, delay, TimeUnit.SECONDS);
     }
 }

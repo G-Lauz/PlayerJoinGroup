@@ -22,6 +22,6 @@ public class PlayerJoinListener extends ConnectionListener {
         this.plugin.getLogger().info(player.getName() + " connect to " + event.getTarget());
 
         if (event.getReason() == ServerConnectEvent.Reason.JOIN_PROXY)
-            broadcastEvent(event.getTarget(), player, EventType.JOIN_SERVER_GROUP);
+            scheduledBroadcastEvent(event.getTarget(), player, EventType.JOIN_SERVER_GROUP, 1);
     }
 }
