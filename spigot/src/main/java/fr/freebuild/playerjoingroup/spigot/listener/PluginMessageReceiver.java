@@ -35,12 +35,6 @@ public class PluginMessageReceiver implements PluginMessageListener {
         try {
             Packet packet = Protocol.deconstructPacket(bytes);
 
-            // TODO Remove logs
-            System.out.println("Packet received:");
-            System.out.println("--------------------------------------------------------");
-            System.out.println(packet.toString());
-            System.out.println("--------------------------------------------------------");
-
             String subchannel = packet.getSubchannel();
             switch (Subchannel.typeof(subchannel)) {
                 case BROADCAST -> onBroadcastReceived(packet.getData());

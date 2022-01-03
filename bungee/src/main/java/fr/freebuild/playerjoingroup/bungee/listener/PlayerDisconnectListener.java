@@ -17,9 +17,6 @@ public class PlayerDisconnectListener extends ConnectionListener{
     public void on(PlayerDisconnectEvent event) throws ServerGroupNotFoundException {
         ProxiedPlayer player = event.getPlayer();
 
-        // TODO remove logs?
-        System.out.println(player.getName() + " disconnect from " + player.getServer().getInfo());
-
         broadcastEvent(player.getServer().getInfo(), player, EventType.LEAVE_SERVER_GROUP);
     }
 }

@@ -1,6 +1,7 @@
 package fr.freebuild.playerjoingroup.bungee;
 
 import fr.freebuild.playerjoingroup.core.protocol.*;
+
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
@@ -42,9 +43,6 @@ public class Messager {
             Collection<ProxiedPlayer> serverPlayers = serverInfo.getPlayers();
             if (serverPlayers == null || serverPlayers.isEmpty())
                 return;
-
-            // TODO Remove logs
-            System.out.println("Send the following to server: \"" + serverName + "\".\n" + packet.toString());
 
             serverInfo.sendData(this.plugin.getConfig().getChannel(), Protocol.constructPacket(packet));
         } catch (InvalidPacketException ipe) {

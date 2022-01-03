@@ -1,7 +1,6 @@
 package fr.freebuild.playerjoingroup.bungee.listener;
 
 import fr.freebuild.playerjoingroup.bungee.PlayerJoinGroup;
-import fr.freebuild.playerjoingroup.bungee.ServerGroupNotFoundException;
 import fr.freebuild.playerjoingroup.bungee.Utils;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 
@@ -17,15 +16,11 @@ public class PlayerSwitchListener extends ConnectionListener {
     }
 
     @EventHandler
-    public void on(ServerSwitchEvent event) throws ServerGroupNotFoundException {
+    public void on(ServerSwitchEvent event) {
         ProxiedPlayer player = event.getPlayer();
         ServerInfo fromServer = event.getFrom();
 
         if (fromServer != null) {
-
-            // TODO remove logs?
-            System.out.print(player.getName() + " switched from " + fromServer.getName() + " to " + player.getServer().getInfo().getName());
-
             String fromGroup = Utils.getServerGroupName(fromServer.getName(), this.plugin.getConfig());
             String toGroup = Utils.getServerGroupName(player.getServer().getInfo().getName(), this.plugin.getConfig());
 

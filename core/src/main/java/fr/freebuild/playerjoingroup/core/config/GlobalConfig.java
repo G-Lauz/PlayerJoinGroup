@@ -33,8 +33,8 @@ public class GlobalConfig {
         } finally {
             if (configFile != null)
                 configFile.close();
-            return this;
         }
+        return this;
     }
 
     public String getChannel() {

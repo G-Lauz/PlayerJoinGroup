@@ -6,12 +6,12 @@ import fr.freebuild.playerjoingroup.bungee.Utils;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.Packet;
 import fr.freebuild.playerjoingroup.core.protocol.Subchannel;
+
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Listener;
 
 import java.util.Arrays;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;

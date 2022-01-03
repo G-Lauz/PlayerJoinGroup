@@ -3,12 +3,9 @@ package fr.freebuild.playerjoingroup.bungee.listener;
 import fr.freebuild.playerjoingroup.bungee.PlayerJoinGroup;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 
-import net.md_5.bungee.api.connection.Server;
 import net.md_5.bungee.api.event.PluginMessageEvent;
 import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.event.EventHandler;
-
-import java.util.ArrayList;
 
 public class PluginMessageReceiver implements Listener {
 
@@ -20,7 +17,7 @@ public class PluginMessageReceiver implements Listener {
 
     /**
      * Called when their is an incoming Plugin Message Channel on the channel parameter configure in the fr.freebuild.playerjoingroup.core.config.properties.
-     * @param event
+     * @param event The plugin message event
      */
     @EventHandler
     public void on(PluginMessageEvent event) throws
@@ -44,7 +41,6 @@ public class PluginMessageReceiver implements Listener {
         switch (Subchannel.valueOf(subchannel)) {
             case BROADCAST:
                 this.plugin.getMessager().broadcast(packet);
-                //broadcast((Server) event.getSender(), packet);
                 break;
 
             case EVENT:
@@ -56,26 +52,4 @@ public class PluginMessageReceiver implements Listener {
                 throw new UnknownSubchannelException(subchannel);
         }
     }
-
-    /**
-     * NOTE currently send data to everyone including itself. Keep or change?
-     * @param sender
-     * @param packet
-     */
-//    private void broadcast(Server sender, Packet packet) {
-//        this.plugin.getConfig().getGroup().forEach((serverGroup, servers) -> {
-//            if (serverGroup.equals(packet.getParams().get(ParamsKey.SERVER_GROUP.getValue()))) {
-//                ((ArrayList) servers).forEach(server -> {
-//                    try {
-//                        this.plugin.getProxy().getServerInfo((String) server).sendData(
-//                                this.plugin.getConfig().getChannel(), Protocol.constructPacket(packet));
-//                    } catch (InvalidPacketException e) {
-//                        e.printStackTrace();
-//                    } catch (ConstructPacketErrorException e) {
-//                        e.printStackTrace();
-//                    }
-//                });
-//            }
-//        });
-//    }
 }
