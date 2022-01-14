@@ -39,7 +39,7 @@ class QuerySpigotServerTest {
                 e.printStackTrace();
                 assert false;
             }
-            query.notify(true);
+            query.update(true);
         });
 
         assertTrue(answer.get());

@@ -46,6 +46,14 @@ public class Packet {
             return this;
         }
 
+        public Builder setQuery(QueryType query) {
+            return this.appendParam(ParamsKey.QUERY.getValue(), query.getValue());
+        }
+
+        public Builder setHashCode(Integer hashCode) {
+            return this.appendParam(ParamsKey.HASH_CODE.getValue(), hashCode.toString());
+        }
+
         public Builder appendParam(String key, String value) {
             this.params.put(key, value);
             return this;

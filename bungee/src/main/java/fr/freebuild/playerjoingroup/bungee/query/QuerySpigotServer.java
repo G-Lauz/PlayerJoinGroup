@@ -19,6 +19,13 @@ public class QuerySpigotServer<T> implements Callable<T>, Observer<T> {
     private Packet request;
     private T response;
 
+    public QuerySpigotServer(ServerInfo target) {
+        this.idle = true;
+        this.target = target;
+        this.request = null;
+        this.response = null;
+    }
+
     public QuerySpigotServer(ServerInfo target, Packet packet) {
         this.idle = true;
         this.target = target;
@@ -41,7 +48,7 @@ public class QuerySpigotServer<T> implements Callable<T>, Observer<T> {
     }
 
     @Override
-    public void notify(T obj) {
+    public void update(T obj) {
         synchronized (this) {
             this.idle = false;
             this.response = obj;
@@ -59,5 +66,9 @@ public class QuerySpigotServer<T> implements Callable<T>, Observer<T> {
             return;
 
         this.target.sendData(PlayerJoinGroup.plugin.getConfig().getChannel(), Protocol.constructPacket(this.request));
+    }
+
+    public void setRequest(Packet request) {
+        this.request = request;
     }
 }

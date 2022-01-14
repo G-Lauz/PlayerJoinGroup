@@ -9,8 +9,14 @@ import net.md_5.bungee.api.plugin.Plugin;
 
 public class PlayerJoinGroup extends Plugin {
 
+    public static PlayerJoinGroup plugin;
+
     private Config config;
     private Messager messager;
+
+    public PlayerJoinGroup() {
+        PlayerJoinGroup.plugin = this;
+    }
 
     @Override
     public void onEnable() {
@@ -29,6 +35,7 @@ public class PlayerJoinGroup extends Plugin {
         getProxy().getPluginManager().registerListener(this, new PlayerJoinListener(this));
         getProxy().getPluginManager().registerListener(this, new PlayerSwitchListener(this));
         getProxy().getPluginManager().registerListener(this, new PlayerDisconnectListener(this));
+        getProxy().registerChannel(this.getConfig().getChannel());
     }
 
     public Config getConfig() {

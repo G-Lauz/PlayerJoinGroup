@@ -2,6 +2,7 @@ package fr.freebuild.playerjoingroup.core.protocol;
 
 public enum Subchannel {
     EVENT("EVENT"),
+    QUERY("QUERY"),
     BROADCAST("BROADCAST");
 
     private String value;

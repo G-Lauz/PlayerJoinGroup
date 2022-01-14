@@ -41,7 +41,7 @@ class QueryHasPlayedBeforeTest {
             observable.schedule(() -> {
                 try {
                     Thread.sleep(2000 - (finalI * 500));
-                    query.notify(true);
+                    query.update(true);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     assert false;
@@ -71,9 +71,9 @@ class QueryHasPlayedBeforeTest {
                     Thread.sleep(2000 - (finalI * 500));
 
                     if (finalI == 1)
-                        query.notify(false);
+                        query.update(false);
                     else
-                        query.notify(true);
+                        query.update(false);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     assert false;

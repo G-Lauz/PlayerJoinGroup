@@ -1,8 +1,10 @@
 package fr.freebuild.playerjoingroup.core.protocol;
 
 public enum ParamsKey {
-    SERVER_GROUP("server-group"),
-    EVENT("event");
+    SERVER_GROUP("serverGroup"),
+    EVENT("event"),
+    QUERY("query"),
+    HASH_CODE("hashCode");
 
     private String value;
 

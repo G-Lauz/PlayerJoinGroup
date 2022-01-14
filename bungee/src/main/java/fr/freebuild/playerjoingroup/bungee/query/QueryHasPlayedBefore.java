@@ -14,10 +14,14 @@ public class QueryHasPlayedBefore implements Callable<Boolean> {
 
     @Override
     public Boolean call() throws InterruptedException {
-        ExecutorService services = Executors.newFixedThreadPool(this.queries.size());
+        int poolSize = this.queries.size();
+        if (poolSize < 1)
+            return false;
+
+        ExecutorService services = Executors.newFixedThreadPool(poolSize);
         List<Future<Boolean>> responses = services.invokeAll(this.queries);
 
-        return responses.stream().allMatch(future -> {
+        return responses.stream().anyMatch(future -> {
             try {
                 return future.get();
             } catch (InterruptedException e) {
