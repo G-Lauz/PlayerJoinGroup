@@ -6,21 +6,21 @@ ARG SERVER_PORT=25565
 
 WORKDIR /app/build
 
-RUN apt-get update && apt-get install -y \ 
-    git \
-    wget
+RUN apt-get update && apt-get install -y git
 
 # Build the Spigot server
-RUN wget -O BuildTools.jar https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar
+ADD https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar /app/build
 RUN java -jar BuildTools.jar --rev ${MINECRAFT_VERSION} --output-dir /app/server
 
 # Run the Spigot server
 WORKDIR /app/server
 
-ENV MEMORY ${SERVER_MEMORY}
-ENV VERSION ${MINECRAFT_VERSION}
+COPY .dev/spigot/*.yml .
 RUN mkdir ./plugins && \
-    echo "eula=true" > ./eula.txt
-CMD [ "bash", "-c", "java -Xms${MEMORY}G -Xmx${MEMORY}G -XX:+UseG1GC -jar spigot-${VERSION}.jar nogui" ]
+    echo "eula=true" > ./eula.txt && \
+    echo "java -Xms${SERVER_MEMORY}G -Xmx${SERVER_MEMORY}G -XX:+UseG1GC -jar spigot-${MINECRAFT_VERSION}.jar nogui" > ./start.sh && \
+    chmod +x ./start.sh
+
+CMD [ "bash", "-c", "./start.sh" ]
 
 EXPOSE ${SERVER_PORT}
