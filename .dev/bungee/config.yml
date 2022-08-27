@@ -47,9 +47,9 @@ disabled_commands:
 servers:
   server1:
     motd: Server 1
-    address: localhost:26001
+    address: server1:25565
     restricted: false
   server2:
     motd: Server 2
-    address: localhost:26002
+    address: server2:25565
     restricted: false

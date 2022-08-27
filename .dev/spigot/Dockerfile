@@ -16,6 +16,7 @@ RUN java -jar BuildTools.jar --rev ${MINECRAFT_VERSION} --output-dir /app/server
 WORKDIR /app/server
 
 COPY .dev/spigot/*.yml .
+COPY .dev/spigot/server.properties .
 RUN mkdir ./plugins && \
     echo "eula=true" > ./eula.txt && \
     echo "java -Xms${SERVER_MEMORY}G -Xmx${SERVER_MEMORY}G -XX:+UseG1GC -jar spigot-${MINECRAFT_VERSION}.jar nogui" > ./start.sh && \

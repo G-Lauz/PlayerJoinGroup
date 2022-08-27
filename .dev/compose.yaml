@@ -1,0 +1,38 @@
+version: "3.9"
+services:
+  bungeecord:
+    build:
+      context: ../
+      dockerfile: .dev/bungee/Dockerfile
+      args:
+        - PROXY_PORT=25577
+    image: g-lauz/bungeecord
+    depends_on:
+      - server1
+      - server2
+    ports:
+      - "26000:25577"
+    volumes:
+      - ./bungee/plugins:/app/server/plugins
+  server1:
+    build:
+      context: ../
+      dockerfile: .dev/spigot/Dockerfile
+      args:
+        - MINECRAFT_VERSION=1.19.2
+        - SERVER_MEMORY=1
+        - SERVER_PORT=25565
+    image: g-lauz/spigot:1.19.2
+    volumes:
+      - ./spigot/plugins:/app/server/plugins
+  server2:
+    build:
+      context: ../
+      dockerfile: .dev/spigot/Dockerfile
+      args:
+        - MINECRAFT_VERSION=1.19.2
+        - SERVER_MEMORY=1
+        - SERVER_PORT=25565
+    image: g-lauz/spigot:1.19.2
+    volumes:
+      - ./spigot/plugins:/app/server/plugins
