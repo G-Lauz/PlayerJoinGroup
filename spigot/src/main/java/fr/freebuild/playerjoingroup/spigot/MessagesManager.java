@@ -132,33 +132,16 @@ public class MessagesManager {
     }
 
     private void onPlayerJoin(Packet packet) throws InvalidPacketException, ConstructPacketErrorException, IOException {
-        String playerName = packet.getParams().get("PLAYER_NAME");
-
         OfflinePlayer player = getOfflinePlayer(UUID.fromString(packet.getData()));
+        String hashCode = packet.getParams().get(ParamsKey.HASH_CODE.getValue());
 
-        // TODO WIP
-
-        if (!player.hasPlayedBefore()) {
-
-            // TODO doesn't seems right
-            Player onlinePlayer = player.getPlayer();
-            if (onlinePlayer == null)
-                return;
-
-            Packet firstConnection = new Packet.Builder(Subchannel.EVENT)
-                    .setData(player.getUniqueId().toString())
-                    .setEventType(EventType.FIRST_SPIGOT_CONNECTION)
-                    .build();
-
-            System.out.println("Sending: " + playerName + " FirstSpigotConnection");
-
-            byte[] message = Protocol.constructPacket(firstConnection);
-            this.send(message);
-        } else {
-            String message = Utils.getConfigString("JoinMessage");
-            message = Utils.format(message, FormatParam.PLAYER, playerName);
-            getServer().broadcastMessage(message);
-        }
+        Packet answer = new Packet.Builder(Subchannel.QUERY)
+                .setData(Boolean.toString(player.hasPlayedBefore()))
+                .setHashCode(Integer.parseInt(hashCode))
+                .setQuery(QueryType.HAS_PLAYED_BEFORE_RESPONSE)
+                .build();
+        System.out.println("Sending: Answer query HasPlayedBefore");
+        this.send(Protocol.constructPacket(answer));
 
 //        if (!player.hasPlayedBefore()) {
 //            Packet packet = new Packet.Builder(Subchannel.EVENT)
@@ -181,9 +164,11 @@ public class MessagesManager {
     }
 
     private void onQueryHasPlayedBefore(String hashCode, String playerUUID) throws InvalidPacketException, ConstructPacketErrorException, IOException {
-        Player player = getPlayer(UUID.fromString(playerUUID));
-        if (player == null)
-            player = (Player) getOnlinePlayers().toArray()[0];
+//        Player player = getPlayer(UUID.fromString(playerUUID));
+//        if (player == null)
+//            player = (Player) getOnlinePlayers().toArray()[0];
+
+        OfflinePlayer player = getOfflinePlayer(UUID.fromString(playerUUID));
 
         Packet packet = new Packet.Builder(Subchannel.QUERY)
                 .setData(Boolean.toString(player.hasPlayedBefore()))

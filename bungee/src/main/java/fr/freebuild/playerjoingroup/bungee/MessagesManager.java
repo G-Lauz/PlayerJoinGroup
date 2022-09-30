@@ -1,6 +1,5 @@
 package fr.freebuild.playerjoingroup.bungee;
 
-import fr.freebuild.playerjoingroup.bungee.query.QueryHasPlayedBefore;
 import fr.freebuild.playerjoingroup.bungee.query.QuerySpigotServer;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.*;
@@ -13,10 +12,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
 public class MessagesManager {
 
@@ -162,9 +158,11 @@ public class MessagesManager {
 //            System.out.print(server + ":\n" + packet.toString());
             clients.get(server).write(Protocol.constructPacket(packet));
 
-        } catch (InvalidPacketException e) {
+        } catch (InvalidPacketException e) { // TODO better exception handling
+            e.printStackTrace();
             throw new RuntimeException(e);
         } catch (ConstructPacketErrorException e) {
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
@@ -178,9 +176,71 @@ public class MessagesManager {
                     try {
                         sendToOne((String)server, packet);
                     } catch (IOException e) {
+                        e.printStackTrace();
                         throw new RuntimeException(e); // TODO better exception handle
                     }
                 });
+            }
+        });
+    }
+
+    public void sendQueryHasPlayedBefore(String serverName, String playerUUID) {
+        ProxiedPlayer player =  this.plugin.getProxy().getPlayer(UUID.fromString(playerUUID));
+        Config config = this.plugin.getConfig();
+        String group = Utils.getServerGroupName(serverName, config);
+
+        QuerySpigotServer<Boolean> query = new QuerySpigotServer<>(serverName, MessagesManager.this);
+        int queryHashCode = query.hashCode();
+
+        Packet packet = new Packet.Builder(Subchannel.QUERY)
+                .setData(playerUUID)
+                .setQuery(QueryType.HAS_PLAYED_BEFORE)
+                .setServerGroup(group) // TODO refactor
+                .setHashCode(queryHashCode)
+                .build();
+        query.setRequest(packet);
+
+        this.subscribe(queryHashCode, query);
+
+        ExecutorService services = Executors.newFixedThreadPool(2);
+        Future<Boolean> response = services.submit(query);
+        services.submit(() -> {
+            try {
+                boolean hasPlayedBefore = response.get();
+
+                if (hasPlayedBefore) {
+                    Packet hasPlayedBeforePacket = new Packet.Builder(Subchannel.EVENT)
+                            .setData(player.getName())
+                            .setEventType(EventType.HAS_PLAYED_BEFORE)
+                            .setServerGroup(group)
+                            .build();
+                    System.out.println("Sending: " + hasPlayedBeforePacket.getData() + " HAS_PLAYED_BEFORE");
+                    sendToAll(hasPlayedBeforePacket);
+                } else {
+                    Packet greetingPacket = new Packet.Builder(Subchannel.EVENT)
+                            .setData(player.getName())
+                            .setEventType(EventType.FIRST_GROUP_CONNECTION)
+                            .setServerGroup(group) // TODO refactor
+                            .build();
+
+                    System.out.println("Sending: " + greetingPacket.getData() + " FirstGroupConnection");
+                    sendToAll(greetingPacket);
+                }
+
+            } catch (InterruptedException e) { // TODO better exception handling
+                System.out.println("InterruptedException");
+                e.printStackTrace();
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                System.out.println("ExecutionException");
+                e.printStackTrace();
+                throw new RuntimeException(e);
+            } catch (IOException e) {
+                System.out.println("IOException");
+                e.printStackTrace();
+                throw new RuntimeException(e);
+            } catch (Exception e) {
+                this.plugin.getLogger().severe(Arrays.toString(e.getStackTrace())); // TODO better exception handling
             }
         });
     }
@@ -252,6 +312,7 @@ public class MessagesManager {
 
                     System.out.println("Sending: " + greetingPacket.getData() + " FirstGroupConnection");
                     sendToAll(greetingPacket);
+                    System.out.println("GOT THERE");
                 } else {
                     ((ArrayList)config.getGroup().get(group)).forEach(server -> {
                         if (!server.equals(serverName)) {
