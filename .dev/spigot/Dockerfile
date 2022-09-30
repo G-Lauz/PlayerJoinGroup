@@ -19,7 +19,7 @@ COPY .dev/spigot/*.yml .
 COPY .dev/spigot/server.properties .
 RUN mkdir ./plugins && \
     echo "eula=true" > ./eula.txt && \
-    echo "java -Xms${SERVER_MEMORY}G -Xmx${SERVER_MEMORY}G -XX:+UseG1GC -jar spigot-${MINECRAFT_VERSION}.jar nogui" > ./start.sh && \
+    echo "java -Xms${SERVER_MEMORY}G -Xmx${SERVER_MEMORY}G -XX:+UseG1GC -DIReallyKnowWhatIAmDoingISwear -jar spigot-${MINECRAFT_VERSION}.jar nogui" > ./start.sh && \
     chmod +x ./start.sh
 
 CMD [ "bash", "-c", "./start.sh" ]

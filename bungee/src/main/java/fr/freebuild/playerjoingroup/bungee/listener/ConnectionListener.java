@@ -11,6 +11,7 @@ import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Listener;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -38,11 +39,19 @@ public abstract class ConnectionListener implements Listener {
 
         Packet packet = new Packet.Builder(Subchannel.EVENT)
                 .setData(player.getUniqueId().toString())
+                .appendParam("PLAYER_NAME", player.getName())
                 .setEventType(event)
                 .setServerGroup(group)
                 .build();
 
-        this.plugin.getMessager().broadcast(packet);
+        System.out.println("Sending: " + player.getName() + " " + event.getValue());
+
+//        this.plugin.getMessager().broadcast(packet);
+        try {
+            this.plugin.getMessagesManager().sendToAll(packet);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     protected void scheduledBroadcastEvent(ServerInfo serverInfo, ProxiedPlayer player, EventType event, int delay) {

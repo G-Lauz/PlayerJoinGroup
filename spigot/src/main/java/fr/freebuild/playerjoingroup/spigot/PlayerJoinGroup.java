@@ -6,6 +6,7 @@ import fr.freebuild.playerjoingroup.spigot.firework.FireworkBuilder;
 import fr.freebuild.playerjoingroup.spigot.listener.PlayerJoinListener;
 import fr.freebuild.playerjoingroup.spigot.listener.PluginMessageReceiver;
 
+import fr.freebuild.playerjoingroup.spigot.listener.SocketConnectedListener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
@@ -16,6 +17,8 @@ public class PlayerJoinGroup extends JavaPlugin {
     public static PlayerJoinGroup plugin;
     private final GlobalConfig config;
     private FireworkBuilder fireworkBuilder;
+
+    private MessagesManager messagesManager;
 
     public PlayerJoinGroup() throws IOException, LoadConfigFileException {
         PlayerJoinGroup.plugin = this;
@@ -35,10 +38,19 @@ public class PlayerJoinGroup extends JavaPlugin {
             return;
         }
 
-        PluginMessageReceiver pluginMessageListener = new PluginMessageReceiver(this);
-        this.registerIOChannel(pluginMessageListener);
+        this.messagesManager = new MessagesManager("bungeecord", 26005);
+
+//        PluginMessageReceiver pluginMessageListener = new PluginMessageReceiver(this);
+//        this.registerIOChannel(pluginMessageListener);
 
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
+        getServer().getPluginManager().registerEvents(new SocketConnectedListener(this),this);
+
+        try {
+            this.messagesManager.initialize();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         this.fireworkBuilder = new FireworkBuilder();
         this.saveResource("config.yml", false);
@@ -66,5 +78,9 @@ public class PlayerJoinGroup extends JavaPlugin {
 
     public FireworkBuilder getFireworkBuilder() {
         return fireworkBuilder;
+    }
+
+    public MessagesManager getMessageManager() {
+        return this.messagesManager;
     }
 }

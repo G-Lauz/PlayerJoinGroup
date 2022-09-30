@@ -3,9 +3,10 @@ package fr.freebuild.playerjoingroup.bungee;
 import fr.freebuild.playerjoingroup.bungee.listener.PlayerDisconnectListener;
 import fr.freebuild.playerjoingroup.bungee.listener.PlayerJoinListener;
 import fr.freebuild.playerjoingroup.bungee.listener.PlayerSwitchListener;
-import fr.freebuild.playerjoingroup.bungee.listener.PluginMessageReceiver;
 
 import net.md_5.bungee.api.plugin.Plugin;
+
+import java.io.IOException;
 
 public class PlayerJoinGroup extends Plugin {
 
@@ -13,6 +14,8 @@ public class PlayerJoinGroup extends Plugin {
 
     private Config config;
     private Messager messager;
+
+    private MessagesManager messagesManager;
 
     public PlayerJoinGroup() {
         PlayerJoinGroup.plugin = this;
@@ -31,11 +34,17 @@ public class PlayerJoinGroup extends Plugin {
             getLogger().severe(err.getMessage());
         }
 
-        getProxy().getPluginManager().registerListener(this, new PluginMessageReceiver(this));
+//        getProxy().getPluginManager().registerListener(this, new PluginMessageReceiver(this));
         getProxy().getPluginManager().registerListener(this, new PlayerJoinListener(this));
         getProxy().getPluginManager().registerListener(this, new PlayerSwitchListener(this));
         getProxy().getPluginManager().registerListener(this, new PlayerDisconnectListener(this));
-        getProxy().registerChannel(this.getConfig().getChannel());
+//        getProxy().registerChannel(this.getConfig().getChannel());
+
+        try {
+            this.messagesManager = new MessagesManager(this,26005);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Config getConfig() {
@@ -44,5 +53,9 @@ public class PlayerJoinGroup extends Plugin {
 
     public Messager getMessager() {
         return messager;
+    }
+
+    public MessagesManager getMessagesManager() {
+        return messagesManager;
     }
 }

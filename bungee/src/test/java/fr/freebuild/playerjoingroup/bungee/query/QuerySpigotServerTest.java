@@ -1,5 +1,6 @@
 package fr.freebuild.playerjoingroup.bungee.query;
 
+import fr.freebuild.playerjoingroup.bungee.MessagesManager;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 
 import net.md_5.bungee.api.config.ServerInfo;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
 import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -21,13 +23,13 @@ class QuerySpigotServerTest {
     private Packet packet;
 
     @Mock
-    private ServerInfo serverInfo;
+    private MessagesManager messagesManager;
 
     @Test
-    void testQueryDelayedAnswer() throws ExecutionException, InterruptedException, InvalidPacketException, ConstructPacketErrorException {
+    void testQueryDelayedAnswer() throws ExecutionException, InterruptedException, InvalidPacketException, ConstructPacketErrorException, IOException {
         ExecutorService service = Executors.newFixedThreadPool(2);
 
-        QuerySpigotServer<Boolean> query = spy(new QuerySpigotServer<>(this.serverInfo, this.packet));
+        QuerySpigotServer<Boolean> query = spy(new QuerySpigotServer<>("server1", this.packet, this.messagesManager));
         doNothing().when(query).sendQuery();
 
         Future<Boolean> answer = service.submit(query);
