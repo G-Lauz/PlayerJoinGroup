@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+// TODO doesn't seems right
 public abstract class ConnectionListener implements Listener {
 
     protected final PlayerJoinGroup plugin;
@@ -44,9 +45,6 @@ public abstract class ConnectionListener implements Listener {
                 .setServerGroup(group)
                 .build();
 
-        System.out.println("Sending: " + player.getName() + " " + event.getValue());
-
-//        this.plugin.getMessager().broadcast(packet);
         try {
             this.plugin.getMessagesManager().sendToAll(packet);
         } catch (IOException e) {

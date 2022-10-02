@@ -13,8 +13,6 @@ public class PlayerJoinGroup extends Plugin {
     public static PlayerJoinGroup plugin;
 
     private Config config;
-    private Messager messager;
-
     private MessagesManager messagesManager;
 
     public PlayerJoinGroup() {
@@ -25,8 +23,6 @@ public class PlayerJoinGroup extends Plugin {
     public void onEnable() {
         super.onEnable();
 
-        messager = new Messager(this);
-
         try {
             config = new Config(this);
         } catch (Exception err) {
@@ -34,11 +30,9 @@ public class PlayerJoinGroup extends Plugin {
             getLogger().severe(err.getMessage());
         }
 
-//        getProxy().getPluginManager().registerListener(this, new PluginMessageReceiver(this));
         getProxy().getPluginManager().registerListener(this, new PlayerJoinListener(this));
         getProxy().getPluginManager().registerListener(this, new PlayerSwitchListener(this));
         getProxy().getPluginManager().registerListener(this, new PlayerDisconnectListener(this));
-//        getProxy().registerChannel(this.getConfig().getChannel());
 
         try {
             this.messagesManager = new MessagesManager(this,26005);
@@ -47,12 +41,10 @@ public class PlayerJoinGroup extends Plugin {
         }
     }
 
+    // TODO ondisbale close all thread
+
     public Config getConfig() {
         return config;
-    }
-
-    public Messager getMessager() {
-        return messager;
     }
 
     public MessagesManager getMessagesManager() {

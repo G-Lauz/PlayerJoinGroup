@@ -17,9 +17,8 @@ import java.util.concurrent.Callable;
 public class QuerySpigotServer<T> implements Callable<T>, Observer<T> {
 
     private boolean idle;
-//    private ServerInfo target;
     private String target;
-    private MessagesManager messagesManager;
+    private MessagesManager messagesManager; // TODO refactor, doesn't seems right
     private Packet request;
     private T response;
 
@@ -62,16 +61,7 @@ public class QuerySpigotServer<T> implements Callable<T>, Observer<T> {
         }
     }
 
-    public void sendQuery() throws InvalidPacketException, ConstructPacketErrorException, IOException {
-//        Collection<ProxiedPlayer> networkPlayers = PlayerJoinGroup.plugin.getProxy().getPlayers();
-//        if (networkPlayers == null || networkPlayers.isEmpty())
-//            return;
-
-//        Collection<ProxiedPlayer> serverPlayers = this.target.getPlayers();
-//        if (serverPlayers == null || serverPlayers.isEmpty())
-//            return;
-//
-//        this.target.sendData(PlayerJoinGroup.plugin.getConfig().getChannel(), Protocol.constructPacket(this.request));
+    public void sendQuery() throws IOException {
         this.messagesManager.sendToOne(this.target, this.request);
     }
 

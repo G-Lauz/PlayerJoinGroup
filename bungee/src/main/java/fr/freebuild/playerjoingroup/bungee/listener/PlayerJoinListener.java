@@ -16,7 +16,7 @@ public class PlayerJoinListener extends ConnectionListener {
     }
 
     @EventHandler
-    public void on(ServerConnectEvent event) {
+    public void on(ServerConnectEvent event) { // TODO refactor (see ConnectionListener)
         ProxiedPlayer player = event.getPlayer();
 
         if (event.getReason() == ServerConnectEvent.Reason.JOIN_PROXY) {

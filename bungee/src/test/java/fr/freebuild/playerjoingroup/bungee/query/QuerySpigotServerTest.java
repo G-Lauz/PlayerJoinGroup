@@ -3,8 +3,6 @@ package fr.freebuild.playerjoingroup.bungee.query;
 import fr.freebuild.playerjoingroup.bungee.MessagesManager;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 
-import net.md_5.bungee.api.config.ServerInfo;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;

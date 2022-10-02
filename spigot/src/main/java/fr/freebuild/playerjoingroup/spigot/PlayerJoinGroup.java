@@ -4,7 +4,6 @@ import fr.freebuild.playerjoingroup.core.config.GlobalConfig;
 import fr.freebuild.playerjoingroup.core.config.LoadConfigFileException;
 import fr.freebuild.playerjoingroup.spigot.firework.FireworkBuilder;
 import fr.freebuild.playerjoingroup.spigot.listener.PlayerJoinListener;
-import fr.freebuild.playerjoingroup.spigot.listener.PluginMessageReceiver;
 
 import fr.freebuild.playerjoingroup.spigot.listener.SocketConnectedListener;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -40,9 +39,6 @@ public class PlayerJoinGroup extends JavaPlugin {
 
         this.messagesManager = new MessagesManager("bungeecord", 26005);
 
-//        PluginMessageReceiver pluginMessageListener = new PluginMessageReceiver(this);
-//        this.registerIOChannel(pluginMessageListener);
-
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         getServer().getPluginManager().registerEvents(new SocketConnectedListener(this),this);
 
@@ -57,6 +53,8 @@ public class PlayerJoinGroup extends JavaPlugin {
         this.fireworkBuilder.load();
     }
 
+    // TODO ondisable clean exit for all thread
+
     private boolean checkIfBungee() {
         return getServer().spigot().getConfig().getBoolean("settings.bungeecord");
     }
@@ -65,11 +63,6 @@ public class PlayerJoinGroup extends JavaPlugin {
         Arrays.stream(messages).forEach(msg -> getLogger().severe(msg));
         getLogger().severe("Plugin disabled!");
         getServer().getPluginManager().disablePlugin(this.plugin);
-    }
-
-    private void registerIOChannel(PluginMessageReceiver listener) {
-        getServer().getMessenger().registerIncomingPluginChannel(this.plugin, this.getChannel(), listener);
-        getServer().getMessenger().registerOutgoingPluginChannel(this.plugin, this.getChannel());
     }
 
     public String getChannel() {
