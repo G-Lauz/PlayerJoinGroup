@@ -1,11 +1,13 @@
 package fr.freebuild.playerjoingroup.bungee.listener;
 
 import fr.freebuild.playerjoingroup.bungee.PlayerJoinGroup;
-import fr.freebuild.playerjoingroup.core.event.EventType;
-
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.event.ServerConnectEvent;
 import net.md_5.bungee.event.EventHandler;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class PlayerJoinListener extends ConnectionListener {
 
@@ -14,10 +16,15 @@ public class PlayerJoinListener extends ConnectionListener {
     }
 
     @EventHandler
-    public void on(ServerConnectEvent event) {
+    public void on(ServerConnectEvent event) { // TODO refactor (see ConnectionListener)
         ProxiedPlayer player = event.getPlayer();
 
-        if (event.getReason() == ServerConnectEvent.Reason.JOIN_PROXY)
-            scheduledBroadcastEvent(event.getTarget(), player, EventType.JOIN_SERVER_GROUP, 1);
+        if (event.getReason() == ServerConnectEvent.Reason.JOIN_PROXY) {
+            ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
+
+            service.schedule(() -> {
+                this.plugin.getMessagesManager().sendQueryHasPlayedBefore(event.getTarget().getName(), player.getUniqueId().toString());
+            }, 1, TimeUnit.SECONDS);
+        }
     }
 }

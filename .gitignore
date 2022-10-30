@@ -117,4 +117,4 @@ fabric.properties
 
 # Playerjoingroup containers
 .dev/bungee/plugins
-.dev/spigot/plugins
+.dev/spigot/server*
