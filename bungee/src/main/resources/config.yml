@@ -5,6 +5,9 @@
 #   - {group name}:
 #     - {server name 1}
 #     - {server name 2}
+#
+# Make sure the port match the same as defined in the Spigot plugin configuration
+port: 26005
 group:
   - survival:
       - survival1

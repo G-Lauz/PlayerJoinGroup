@@ -1,11 +1,10 @@
 package fr.freebuild.playerjoingroup.spigot;
 
-import fr.freebuild.playerjoingroup.core.config.GlobalConfig;
-import fr.freebuild.playerjoingroup.core.config.LoadConfigFileException;
 import fr.freebuild.playerjoingroup.spigot.firework.FireworkBuilder;
 import fr.freebuild.playerjoingroup.spigot.listener.PlayerJoinListener;
 
 import fr.freebuild.playerjoingroup.spigot.listener.SocketConnectedListener;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
@@ -14,14 +13,11 @@ import java.util.Arrays;
 public class PlayerJoinGroup extends JavaPlugin {
 
     public static PlayerJoinGroup plugin;
-    private final GlobalConfig config;
     private FireworkBuilder fireworkBuilder;
-
     private MessagesManager messagesManager;
 
-    public PlayerJoinGroup() throws IOException, LoadConfigFileException {
+    public PlayerJoinGroup() {
         PlayerJoinGroup.plugin = this;
-        this.config = new GlobalConfig();
         this.fireworkBuilder = new FireworkBuilder();
     }
 
@@ -37,7 +33,8 @@ public class PlayerJoinGroup extends JavaPlugin {
             return;
         }
 
-        this.messagesManager = new MessagesManager("bungeecord", 26005);
+        FileConfiguration config = this.getConfig();
+        this.messagesManager = new MessagesManager(config.getString("ProxyIP"), config.getInt("ProxyPort"));
 
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         getServer().getPluginManager().registerEvents(new SocketConnectedListener(this),this);
@@ -63,10 +60,6 @@ public class PlayerJoinGroup extends JavaPlugin {
         Arrays.stream(messages).forEach(msg -> getLogger().severe(msg));
         getLogger().severe("Plugin disabled!");
         getServer().getPluginManager().disablePlugin(this.plugin);
-    }
-
-    public String getChannel() {
-        return this.config.getChannel();
     }
 
     public FireworkBuilder getFireworkBuilder() {

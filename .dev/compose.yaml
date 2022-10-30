@@ -12,6 +12,7 @@ services:
       - server2
     ports:
       - "26000:25577"
+      - "26005:26005"
     volumes:
       - ./bungee/plugins:/app/server/plugins
   server1:

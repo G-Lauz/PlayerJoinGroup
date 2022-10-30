@@ -7,7 +7,6 @@ import fr.freebuild.playerjoingroup.spigot.utils.FormatParam;
 import fr.freebuild.playerjoingroup.spigot.utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.entity.Player;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -87,6 +86,7 @@ public class MessagesManager {
                                         default -> getLogger().warning("Unknown query: " + query);
                                     }
                                 }
+                                case HANDSHAKE -> {} // TODO proper handshake (with Query?)
                                 default -> getLogger().warning("Received unhandle action: " + subchannel);
                             }
 

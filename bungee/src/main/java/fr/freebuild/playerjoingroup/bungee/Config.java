@@ -1,8 +1,5 @@
 package fr.freebuild.playerjoingroup.bungee;
 
-import fr.freebuild.playerjoingroup.core.config.GlobalConfig;
-import fr.freebuild.playerjoingroup.core.config.LoadConfigFileException;
-
 import com.google.common.io.ByteStreams;
 
 import net.md_5.bungee.api.plugin.Plugin;
@@ -17,20 +14,17 @@ public class Config {
 
     private final Plugin plugin;
 
-    private String channel;
+    private int port;
     private Hashtable group;
 
-    public Config(Plugin plugin) throws IOException, LoadConfigFileException {
+    public Config(Plugin plugin) {
         this.plugin = plugin;
-        this.channel = null;
+        this.port = 26005;
         this.group = null;
         this.loadConfig();
     }
 
-    public Config loadConfig() throws IOException, LoadConfigFileException {
-        // Load globals configuration
-        GlobalConfig globalConfig = new GlobalConfig();
-        this.channel = globalConfig.getChannel();
+    public Config loadConfig() {
 
         // Load plugin's configuration
         if (!plugin.getDataFolder().exists())
@@ -44,6 +38,8 @@ public class Config {
         Configuration config;
         try {
             config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
+
+            this.port = config.getInt("port");
 
             List<?> serverGroup =  config.getList("group");
             group = new Hashtable();
@@ -74,8 +70,8 @@ public class Config {
         }
     }
 
-    public String getChannel() {
-        return channel;
+    public int getPort() {
+        return port;
     }
 
     public Hashtable getGroup() {
