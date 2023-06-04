@@ -12,6 +12,7 @@ public class SocketConnectedEvent extends Event {
     }
 
     public SocketConnectedEvent(String serverName) {
+        super(true);
         this.serverName = serverName;
     }
 

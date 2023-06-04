@@ -7,7 +7,6 @@ import fr.freebuild.playerjoingroup.spigot.listener.SocketConnectedListener;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.IOException;
 import java.util.Arrays;
 
 public class PlayerJoinGroup extends JavaPlugin {
@@ -15,6 +14,7 @@ public class PlayerJoinGroup extends JavaPlugin {
     public static PlayerJoinGroup plugin;
     private FireworkBuilder fireworkBuilder;
     private MessagesManager messagesManager;
+    private boolean isMessageManagerEnabled = true;
 
     public PlayerJoinGroup() {
         PlayerJoinGroup.plugin = this;
@@ -34,16 +34,12 @@ public class PlayerJoinGroup extends JavaPlugin {
         }
 
         FileConfiguration config = this.getConfig();
-        this.messagesManager = new MessagesManager(config.getString("ProxyIP"), config.getInt("ProxyPort"));
+        this.messagesManager = new MessagesManager(config.getString("ProxyIP"), config.getInt("ProxyPort"), this);
 
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         getServer().getPluginManager().registerEvents(new SocketConnectedListener(this),this);
 
-        try {
-            this.messagesManager.initialize();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        this.messagesManager.initialize();
 
         this.fireworkBuilder = new FireworkBuilder();
         this.saveResource("config.yml", false);
@@ -68,5 +64,13 @@ public class PlayerJoinGroup extends JavaPlugin {
 
     public MessagesManager getMessageManager() {
         return this.messagesManager;
+    }
+
+    public void enableMessageManager(boolean enable) {
+        this.isMessageManagerEnabled = enable;
+    }
+
+    public boolean isMessageManagerEnabled() {
+        return this.isMessageManagerEnabled;
     }
 }

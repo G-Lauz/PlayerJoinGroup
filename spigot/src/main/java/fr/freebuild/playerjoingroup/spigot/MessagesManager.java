@@ -5,6 +5,7 @@ import fr.freebuild.playerjoingroup.core.protocol.*;
 import fr.freebuild.playerjoingroup.spigot.event.SocketConnectedEvent;
 import fr.freebuild.playerjoingroup.spigot.utils.FormatParam;
 import fr.freebuild.playerjoingroup.spigot.utils.Utils;
+
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 
@@ -24,6 +25,7 @@ import static org.bukkit.Bukkit.getServer;
 
 public class MessagesManager {
 
+    private final PlayerJoinGroup plugin;
     private ConnectionToServer server;
     private Queue<byte[]> messages;
     private Socket socket;
@@ -31,76 +33,138 @@ public class MessagesManager {
     private String ip;
     private int port;
 
-    public MessagesManager(String ip, int port) {
+    public MessagesManager(String ip, int port, PlayerJoinGroup plugin) {
         this.messages = new LinkedList<>();
         this.ip = ip;
         this.port = port;
+        this.plugin = plugin;
     }
 
-    public void initialize() throws IOException {
+    public void initialize() {
+        this.connect();
+        this.startConsumerThread();
+    }
+
+    private void connect() {
+        Thread connectionThread = new Thread("playerjoingroup.spigot.messagemanager.connection") {
+            @Override
+            public void run() {
+                int sleepTime = PlayerJoinGroup.plugin.getConfig().getInt("ReconnectDelay");
+                int reconnectAttempts = PlayerJoinGroup.plugin.getConfig().getInt("ReconnectAttempts");
+
+                int retryCount = 0;
+                while (retryCount < reconnectAttempts) {
+                    try {
+                        Thread.sleep(sleepTime);
+                        establishConnection();
+                        return;
+                    } catch (IOException error) {
+                        getLogger().warning("Unable to connect to the proxy. Did you specify the correct IP and port?");
+                        getLogger().warning("Retrying in 5 seconds...");
+                        retryCount++;
+                    } catch (InterruptedException error) {
+                        getLogger().warning("Retry connection interrupted: " + error.getMessage());
+                    }
+                }
+
+                getLogger().warning("Exceeded maximum retry attempts. Connection failed.");
+                getLogger().warning("Will use the default join message.");
+                MessagesManager.this.plugin.enableMessageManager(false);
+            }
+        };
+
+        connectionThread.start();
+    }
+
+    private void establishConnection() throws IOException {
         this.socket = new Socket(this.ip, this.port);
         this.server = new ConnectionToServer(socket);
 
-        if (this.server == null)
-            throw new RuntimeException("MessageManager wasn't initialize.");
-
         String serverName = PlayerJoinGroup.plugin.getConfig().getString("ServerName");
+        getLogger().info("Connected to the proxy as " + serverName);
         Bukkit.getPluginManager().callEvent(new SocketConnectedEvent(serverName));
+    }
 
+    private void startConsumerThread() {
         Thread consumer = new Thread("playerjoingroup.spigot.messagemanager.consumer") {
             @Override
             public void run() {
-                while(!Thread.currentThread().isInterrupted()) { // TODO better loop control
-                    synchronized (messages) {
-                        if (messages.isEmpty()) {
-                            try {
-                                messages.wait();
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }
-
-                        byte[] msg = messages.remove();
-                        messages.notifyAll();
-
-                        // TODO chain of responsibility (maybe)?
-                        try {
-                            Packet packet = Protocol.deconstructPacket(msg);
-
-                            String subchannel = packet.getSubchannel(); // TODO refactor remove subchannel?
-                            switch (Subchannel.typeof(subchannel)) {
-                                case EVENT -> {
-                                    String event = packet.getParams().get(ParamsKey.EVENT.getValue());
-                                    switch (EventType.typeof(event)) {
-                                        case JOIN_SERVER_GROUP -> onPlayerJoin(packet);
-                                        case LEAVE_SERVER_GROUP -> onPlayerLeave(packet);
-                                        case FIRST_GROUP_CONNECTION -> onFirstConnection(packet.getData());
-                                        case HAS_PLAYED_BEFORE -> onHasPlayedBefore(packet);
-                                        default -> getLogger().warning("Unknown event: " + event);
-                                    }
-                                }
-                                case QUERY -> {
-                                    String query = packet.getParams().get(ParamsKey.QUERY.getValue());
-                                    switch (QueryType.typeof(query)) {
-                                        case HAS_PLAYED_BEFORE -> onQueryHasPlayedBefore(packet.getParams().get(ParamsKey.HASH_CODE.getValue()), packet.getData());
-                                        default -> getLogger().warning("Unknown query: " + query);
-                                    }
-                                }
-                                case HANDSHAKE -> {} // TODO proper handshake (with Query?)
-                                default -> getLogger().warning("Received unhandle action: " + subchannel);
-                            }
-
-                        } catch (DeconstructPacketErrorException | InvalidPacketException |
-                                 ConstructPacketErrorException | IOException e) {
-                            getLogger().severe(Arrays.toString(e.getStackTrace()));
-                        }
-                    }
-                }
+                consumeMessage();
             }
         };
 
         consumer.setDaemon(true);
         consumer.start();
+    }
+    private void consumeMessage() {
+        while(!Thread.currentThread().isInterrupted()) {
+            synchronized (messages) {
+                if (messages.isEmpty()) {
+                    this.waitForMessage();
+                }
+
+                byte[] msg = messages.remove();
+                messages.notifyAll();
+
+                this.processMessage(msg);
+            }
+        }
+    }
+
+    private void waitForMessage() {
+        try {
+            messages.wait();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void processMessage(byte[] message) {
+        try {
+            Packet packet = Protocol.deconstructPacket(message);
+            String subchannel = packet.getSubchannel(); // TODO refactor remove subchannel?
+
+            this.handleMessageBySubchannel(subchannel, packet);
+        } catch (DeconstructPacketErrorException | InvalidPacketException |
+                 ConstructPacketErrorException | IOException err) {
+            getLogger().severe(Arrays.toString(err.getStackTrace()));
+        }
+    }
+
+    private void handleMessageBySubchannel(String subchannel, Packet packet) throws ConstructPacketErrorException, IOException, InvalidPacketException {
+        Subchannel subchannelType = Subchannel.typeof(subchannel);
+
+        switch (subchannelType) {
+            case EVENT -> this.handleEventSubchannel(packet);
+            case QUERY -> this.handleQuerySubchannel(packet);
+            case HANDSHAKE -> {
+                break; // TODO proper handshake (with Query?)
+            }
+            default -> getLogger().warning("Received unhandle action: " + subchannel);
+        }
+    }
+
+    private void handleEventSubchannel(Packet packet) throws ConstructPacketErrorException, IOException, InvalidPacketException {
+        String event = packet.getParams().get(ParamsKey.EVENT.getValue());
+        EventType eventType = EventType.typeof(event);
+
+        switch (eventType) {
+            case JOIN_SERVER_GROUP -> onPlayerJoin(packet);
+            case LEAVE_SERVER_GROUP -> onPlayerLeave(packet);
+            case FIRST_GROUP_CONNECTION -> onFirstConnection(packet.getData());
+            case HAS_PLAYED_BEFORE -> onHasPlayedBefore(packet);
+            default -> getLogger().warning("Unknown event: " + event);
+        }
+    }
+
+    private void handleQuerySubchannel(Packet packet) throws ConstructPacketErrorException, IOException, InvalidPacketException {
+        String query = packet.getParams().get(ParamsKey.QUERY.getValue());
+        QueryType queryType = QueryType.typeof(query);
+
+        switch (queryType) {
+            case HAS_PLAYED_BEFORE -> onQueryHasPlayedBefore(packet.getParams().get(ParamsKey.HASH_CODE.getValue()), packet.getData());
+            default -> getLogger().warning("Unknown query: " + query);
+        }
     }
 
     public void send(byte[] msg) throws IOException {
@@ -170,7 +234,9 @@ public class MessagesManager {
             Thread handler = new Thread("playerjoingroup.spigot.messagemanager.socket") {
                 @Override
                 public void run() {
-                    while (!socket.isClosed()) { // TODO better loop control
+                    boolean isConnected = true;
+
+                    while (isConnected) {
                         try {
                             int length = dataInputStream.readInt();
                             if (length > 0) {
@@ -182,10 +248,14 @@ public class MessagesManager {
                                     messages.notifyAll();
                                 }
                             }
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
+                        } catch (IOException error) {
+                            isConnected = false;
+                            getLogger().warning("Connection to server lost, will attempt to reconnect...");
                         }
                     }
+
+                    // Attempt to reconnect a new instance
+                    MessagesManager.this.connect();
                 }
             };
 

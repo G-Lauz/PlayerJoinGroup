@@ -2,6 +2,8 @@
 # The ServerName also must match with the one define in the BungeeCord configuration
 
 ServerName: server-name
+ReconnectDelay: 5000
+ReconnectAttempts: 10
 ProxyIP: localhost
 ProxyPort: 26005
 FirstJoinMessage: "&8&l[&a+&8]&f {playername} &6Bienvenue sur le serveur, tu es le {counter}ème joueur"

@@ -20,10 +20,10 @@ services:
       context: ../
       dockerfile: .dev/spigot/Dockerfile
       args:
-        - MINECRAFT_VERSION=1.19.2
+        - MINECRAFT_VERSION=1.19.4
         - SERVER_MEMORY=1
         - SERVER_PORT=25565
-    image: g-lauz/spigot:1.19.2
+    image: g-lauz/spigot:1.19.4
     volumes:
       - ./spigot/server1/plugins:/app/server/plugins
   server2:
@@ -31,9 +31,9 @@ services:
       context: ../
       dockerfile: .dev/spigot/Dockerfile
       args:
-        - MINECRAFT_VERSION=1.19.2
+        - MINECRAFT_VERSION=1.19.4
         - SERVER_MEMORY=1
         - SERVER_PORT=25565
-    image: g-lauz/spigot:1.19.2
+    image: g-lauz/spigot:1.19.4
     volumes:
       - ./spigot/server2/plugins:/app/server/plugins
