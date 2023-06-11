@@ -7,6 +7,8 @@ services:
       args:
         - PROXY_PORT=25577
     image: g-lauz/bungeecord
+    stdin_open: true
+    tty: true
     depends_on:
       - server1
       - server2
@@ -24,6 +26,8 @@ services:
         - SERVER_MEMORY=1
         - SERVER_PORT=25565
     image: g-lauz/spigot:1.19.4
+    stdin_open: true
+    tty: true
     volumes:
       - ./spigot/server1/plugins:/app/server/plugins
   server2:
@@ -35,5 +39,7 @@ services:
         - SERVER_MEMORY=1
         - SERVER_PORT=25565
     image: g-lauz/spigot:1.19.4
+    stdin_open: true
+    tty: true
     volumes:
       - ./spigot/server2/plugins:/app/server/plugins
