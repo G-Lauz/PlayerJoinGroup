@@ -1,5 +1,8 @@
 package fr.freebuild.playerjoingroup.spigot;
 
+import fr.freebuild.playerjoingroup.spigot.commands.CommandHandler;
+import fr.freebuild.playerjoingroup.spigot.commands.ReloadCommand;
+import fr.freebuild.playerjoingroup.spigot.commands.StatusCommand;
 import fr.freebuild.playerjoingroup.spigot.firework.FireworkBuilder;
 import fr.freebuild.playerjoingroup.spigot.listener.PlayerJoinListener;
 
@@ -38,6 +41,10 @@ public class PlayerJoinGroup extends JavaPlugin {
 
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         getServer().getPluginManager().registerEvents(new SocketConnectedListener(this),this);
+
+        CommandHandler commandHandler = new CommandHandler(this, "playerjoingroup");
+        commandHandler.register(new ReloadCommand(this));
+        commandHandler.register(new StatusCommand(this));
 
         this.messagesManager.initialize();
 

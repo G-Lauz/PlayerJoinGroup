@@ -99,7 +99,7 @@ public class MessagesManager {
     private void consumeMessage() {
         while(!Thread.currentThread().isInterrupted()) {
             synchronized (messages) {
-                if (messages.isEmpty()) {
+                while (messages.isEmpty()) {
                     this.waitForMessage();
                 }
 

@@ -4,3 +4,25 @@ version: ${project.version}
 author: G-Lauz
 api-version: 1.13
 description: Plugin that display custom message on player join
+commands:
+  playerjoingroup:
+    description: PlayerJoinGroup admin command
+    usage: PlayerJoinGroup command. Type '/playerjoingroup help' for more informations.
+    permission: playerjoingroup.use
+    aliases: [pjg]
+permissions:
+  playerjoingroup.*:
+    description: Give access to all PlayerJoinGroup functionalities
+    children:
+      playerjoingroup.use: true
+      playerjoingroup.reload: true
+      playerjoingroup.status: true
+  playerjoingroup.use:
+    description: Players with this permission can use the plugin
+    default: op
+  playerjoingroup.reload:
+    description: Players with this permission can reload the plugin
+    default: op
+  playerjoingroup.status:
+    description: Players with this permission can see the status of the plugin
+    default: op
