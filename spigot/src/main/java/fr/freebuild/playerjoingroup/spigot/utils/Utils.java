@@ -50,4 +50,22 @@ public class Utils {
         PlayerJoinGroup.plugin.saveConfig();
         return counter;
     }
+
+    public static String getFirstConnectionMessage(String playerName) {
+        final Integer counter = increaseCounter("PlayerCounter");
+        String message = getConfigString("FirstJoinMessage");
+        message = Utils.format(message, FormatParam.COUNTER, counter.toString());
+        message = Utils.format(message, FormatParam.PLAYER, playerName);
+        return message;
+    }
+
+    public static String getHasPlayedBeforeMessage(String playerName) {
+        String message = getConfigString("JoinMessage");
+        return Utils.format(message, FormatParam.PLAYER, playerName);
+    }
+
+    public static String getPlayerLeaveMessage(String playerName) {
+        String message = getConfigString("QuitMessage");
+        return Utils.format(message, FormatParam.PLAYER, playerName);
+    }
 }

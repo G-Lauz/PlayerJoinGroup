@@ -174,9 +174,7 @@ public class MessagesManager {
     }
 
     private void onPlayerLeave(Packet packet) {
-        String playerName = packet.getParams().get("PLAYER_NAME");
-        String message = Utils.getConfigString("QuitMessage");
-        message = Utils.format(message, FormatParam.PLAYER, playerName);
+        String message = Utils.getPlayerLeaveMessage(packet.getData());
         getServer().broadcastMessage(message);
     }
 
@@ -204,16 +202,12 @@ public class MessagesManager {
     }
 
     private void onFirstConnection(String playerName) {
-        String message = Utils.getConfigString("FirstJoinMessage");
-        final Integer counter = Utils.increaseCounter("PlayerCounter");
-        message = Utils.format(message, FormatParam.COUNTER, counter.toString());
-        message = Utils.format(message, FormatParam.PLAYER, playerName);
+        String message = Utils.getFirstConnectionMessage(playerName);
         getServer().broadcastMessage(message);
     }
 
     private void onHasPlayedBefore(Packet packet) {
-        String message = Utils.getConfigString("JoinMessage");
-        message = Utils.format(message, FormatParam.PLAYER, packet.getData());
+        String message = Utils.getHasPlayedBeforeMessage(packet.getData());
         getServer().broadcastMessage(message);
     }
 
