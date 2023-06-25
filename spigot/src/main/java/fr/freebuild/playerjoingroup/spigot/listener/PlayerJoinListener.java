@@ -33,18 +33,8 @@ public class PlayerJoinListener implements Listener {
         if (!player.hasPlayedBefore() && PlayerJoinGroup.plugin.getFireworkBuilder().getActivateOnJoin())
             PlayerJoinGroup.plugin.getFireworkBuilder().spawn(player);
 
-        if (this.plugin.isEnabled()) {
-            event.setJoinMessage(null);
-            if (!this.plugin.isMessageManagerEnabled()) {
-                String playerName = event.getPlayer().getDisplayName();
-                if (!event.getPlayer().hasPlayedBefore()) {
-                    this.onFirstConnection(playerName);
-                } else {
-                    this.onHasPlayedBefore(playerName);
-                }
-            }
-        }
-        else {
+        event.setJoinMessage(null);
+        if (!this.plugin.isMessageManagerEnabled()) {
             String playerName = event.getPlayer().getDisplayName();
             if (!event.getPlayer().hasPlayedBefore()) {
                 this.onFirstConnection(playerName);
@@ -62,13 +52,8 @@ public class PlayerJoinListener implements Listener {
      */
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        if (this.plugin.isEnabled()) {
-            event.setQuitMessage(null);
-            if (!this.plugin.isMessageManagerEnabled()) {
-                this.onPlayerLeave(event.getPlayer().getDisplayName());
-            }
-        }
-        else {
+        event.setQuitMessage(null);
+        if (!this.plugin.isMessageManagerEnabled()) {
             this.onPlayerLeave(event.getPlayer().getDisplayName());
         }
     }
