@@ -23,7 +23,7 @@ public class PlayerJoinListener extends ConnectionListener {
             ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
 
             service.schedule(() -> {
-                this.plugin.getMessagesManager().sendQueryHasPlayedBefore(event.getTarget().getName(), player.getUniqueId().toString());
+                this.plugin.getMessagesManager().sendQueryHasPlayedBefore(event.getTarget().getName(), player);
             }, 1, TimeUnit.SECONDS);
         }
     }

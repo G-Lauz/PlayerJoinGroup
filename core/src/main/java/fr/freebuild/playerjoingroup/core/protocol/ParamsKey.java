@@ -4,7 +4,8 @@ public enum ParamsKey {
     SERVER_GROUP("serverGroup"),
     EVENT("event"),
     QUERY("query"),
-    HASH_CODE("hashCode");
+    HASH_CODE("hashCode"),
+    PLAYER_UUID("playerUUID");
 
     private String value;
 
