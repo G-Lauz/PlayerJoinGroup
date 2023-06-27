@@ -48,6 +48,12 @@ public class PlayerJoinGroup extends JavaPlugin {
         }
     }
 
+    @Override
+    public void onDisable() {
+        super.onDisable();
+        this.disableMessageManager();
+    }
+
     private boolean checkIfBungee() {
         return getServer().spigot().getConfig().getBoolean("settings.bungeecord");
     }
