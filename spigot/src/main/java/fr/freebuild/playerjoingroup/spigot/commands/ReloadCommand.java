@@ -15,8 +15,7 @@ public class ReloadCommand extends Command {
     public void execute(CommandSender sender, String[] args) {
         this.plugin.reloadConfig();
         if (!this.plugin.isMessageManagerEnabled()) {
-            this.plugin.enableMessageManager(true);
-            this.plugin.getMessageManager().initialize();
+            this.plugin.enableMessageManager();
         }
         this.plugin.getFireworkBuilder().load();
         sender.sendMessage("§aPlayerJoinGroup has been reloaded.");
