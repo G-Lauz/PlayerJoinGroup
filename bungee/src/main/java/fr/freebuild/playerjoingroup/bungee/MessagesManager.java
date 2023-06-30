@@ -78,7 +78,7 @@ public class MessagesManager {
                                     break;
 
                                 case EVENT:
-                                    String eventType = packet.getParams().get(ParamsKey.EVENT.getValue());
+                                    String eventType = packet.getField(ParamsKey.EVENT);
                                     switch (EventType.typeof(eventType)) {
                                         case FIRST_SPIGOT_CONNECTION -> onFirstConnection(packet.getData()); // TODO we don't receive it anymore
                                         default -> MessagesManager.this.plugin.getLogger().warning("Unknown event: " + eventType);
@@ -86,10 +86,10 @@ public class MessagesManager {
                                     break;
 
                                 case QUERY:
-                                    String queryType = packet.getParams().get(ParamsKey.QUERY.getValue());
+                                    String queryType = packet.getField(ParamsKey.QUERY);
                                     switch (QueryType.typeof(queryType)) {
                                         case HAS_PLAYED_BEFORE_RESPONSE -> {
-                                            int hashCode = Integer.parseInt(packet.getParams().get(ParamsKey.HASH_CODE.getValue()));
+                                            int hashCode = Integer.parseInt(packet.getField(ParamsKey.HASH_CODE));
                                             boolean data = Boolean.parseBoolean(packet.getData());
                                             notifySubscriber(hashCode, data);
                                             unsubscribe(hashCode);
@@ -153,7 +153,7 @@ public class MessagesManager {
     }
 
     public void sendToAll(Packet packet) throws IOException {
-        String group = packet.getParams().get(ParamsKey.SERVER_GROUP.getValue());
+        String group = packet.getField(ParamsKey.SERVER_GROUP);
 
         this.plugin.getConfig().getGroup().forEach((serverGroup, servers) -> {
             if (serverGroup.equals(group) || group.equals("ALL")) {

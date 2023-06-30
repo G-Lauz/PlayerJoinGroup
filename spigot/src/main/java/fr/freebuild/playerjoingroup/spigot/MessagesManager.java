@@ -173,7 +173,7 @@ public class MessagesManager {
     }
 
     private void handleEventSubchannel(Packet packet) throws ConstructPacketErrorException, IOException, InvalidPacketException {
-        String event = packet.getParams().get(ParamsKey.EVENT.getValue());
+        String event = packet.getField(ParamsKey.EVENT);
         EventType eventType = EventType.typeof(event);
 
         switch (eventType) {
@@ -186,11 +186,11 @@ public class MessagesManager {
     }
 
     private void handleQuerySubchannel(Packet packet) throws ConstructPacketErrorException, IOException, InvalidPacketException {
-        String query = packet.getParams().get(ParamsKey.QUERY.getValue());
+        String query = packet.getField(ParamsKey.QUERY);
         QueryType queryType = QueryType.typeof(query);
 
         switch (queryType) {
-            case HAS_PLAYED_BEFORE -> onQueryHasPlayedBefore(packet.getParams().get(ParamsKey.HASH_CODE.getValue()), packet.getData());
+            case HAS_PLAYED_BEFORE -> onQueryHasPlayedBefore(packet.getField(ParamsKey.HASH_CODE), packet.getData());
             default -> getLogger().warning("Unknown query: " + query);
         }
     }
@@ -202,7 +202,7 @@ public class MessagesManager {
     }
 
     private void onPlayerLeave(Packet packet) {
-        String playerName = packet.getParams().get("PLAYER_NAME");
+        String playerName = packet.getField("PLAYER_NAME");
         String message = Utils.getConfigString("QuitMessage");
         message = Utils.format(message, FormatParam.PLAYER, playerName);
         getServer().broadcastMessage(message);
@@ -210,7 +210,7 @@ public class MessagesManager {
 
     private void onPlayerJoin(Packet packet) throws InvalidPacketException, ConstructPacketErrorException, IOException {
         OfflinePlayer player = getOfflinePlayer(UUID.fromString(packet.getData()));
-        String hashCode = packet.getParams().get(ParamsKey.HASH_CODE.getValue());
+        String hashCode = packet.getField(ParamsKey.HASH_CODE);
 
         Packet answer = new Packet.Builder(Subchannel.QUERY)
                 .setData(Boolean.toString(player.hasPlayedBefore()))

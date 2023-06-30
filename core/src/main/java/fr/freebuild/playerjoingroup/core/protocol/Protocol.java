@@ -38,12 +38,12 @@ public class Protocol {
 
         output.writeUTF(subchannel);
 
-        Map<String, String> params = packet.getParams();
+        Map<String, String> params = packet.getFields();
         if (params != null) {
             output.writeBoolean(true);
             output.writeShort(params.size());
-            params.forEach((param, value) -> {
-                output.writeUTF(param);
+            params.forEach((key, value) -> {
+                output.writeUTF(key);
                 output.writeUTF(value);
             });
         } else {
