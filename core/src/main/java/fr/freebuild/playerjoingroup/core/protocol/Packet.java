@@ -4,6 +4,7 @@ import fr.freebuild.playerjoingroup.core.event.EventType;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public class Packet {
     private String subchannel;
@@ -48,6 +49,10 @@ public class Packet {
 
         public Builder setQuery(QueryType query) {
             return this.appendParam(ParamsKey.QUERY.getValue(), query.getValue());
+        }
+
+        public Builder setPlayerUuid(UUID uuid) {
+            return this.appendParam(ParamsKey.PLAYER_UUID.getValue(), uuid.toString());
         }
 
         public Builder setHashCode(Integer hashCode) {

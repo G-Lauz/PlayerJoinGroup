@@ -41,6 +41,7 @@ public abstract class ConnectionListener implements Listener {
         Packet packet = new Packet.Builder(Subchannel.EVENT)
                 .setData(player.getUniqueId().toString())
                 .appendParam("PLAYER_NAME", player.getName())
+                .setPlayerUuid(player.getUniqueId())
                 .setEventType(event)
                 .setServerGroup(group)
                 .build();

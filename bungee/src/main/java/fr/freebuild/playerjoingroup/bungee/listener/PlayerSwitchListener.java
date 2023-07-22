@@ -34,7 +34,7 @@ public class PlayerSwitchListener extends ConnectionListener {
 
                 ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
                 service.schedule(() -> {
-                    this.plugin.getMessagesManager().sendQueryHasPlayedBefore(player.getServer().getInfo().getName(), player.getUniqueId().toString());
+                    this.plugin.getMessagesManager().sendQueryHasPlayedBefore(player.getServer().getInfo().getName(), player);
                 }, 1, TimeUnit.SECONDS);
             }
         }
