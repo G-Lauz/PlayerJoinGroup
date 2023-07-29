@@ -36,6 +36,7 @@ public class PlayerJoinGroup extends Plugin {
 
         try {
             this.messagesManager = new MessagesManager(this, config.getPort());
+            this.messagesManager.initialize();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

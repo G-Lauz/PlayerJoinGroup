@@ -13,8 +13,7 @@ import java.io.IOException;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
-
-// TODO split in different files?
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MessagesManager {
 
@@ -22,25 +21,40 @@ public class MessagesManager {
     private ServerSocket serverSocket;
     private Hashtable<String, ConnectionToClient> clients;
     private Queue<Message> messages;
+    private AtomicBoolean isRunning;
+    private Thread acceptThread;
+    private Thread consumerThread;
 
     private HashMap<Integer, QuerySpigotServer<Boolean>> subscribers;
 
-    // TODO make singleton
     public MessagesManager(PlayerJoinGroup plugin, int port) throws IOException {
         this.plugin = plugin;
 
         this.messages = new LinkedList<>();
         this.clients = new Hashtable<>();
         this.serverSocket = new ServerSocket(port);
-
         this.subscribers = new HashMap<>();
 
-        Thread accept = new Thread("playerjoingroup.bungee.messagemanager.accept") {
+        this.acceptThread = null;
+        this.consumerThread = null;
+
+        this.isRunning = new AtomicBoolean(false);
+    }
+
+    public void initialize() {
+        this.isRunning.set(true);
+        this.accept();
+        this.startConsumerThread();
+    }
+
+    private void accept() {
+        this.acceptThread = new Thread("playerjoingroup.bungee.messagemanager.accept") {
             @Override
             public void run() {
-                while(!Thread.currentThread().isInterrupted()) { // TODO better loop control
+                while (MessagesManager.this.isRunning.get()) {
                     try {
-                        new ConnectionToClient(serverSocket.accept());
+                        Socket socket = serverSocket.accept();
+                        new ConnectionToClient(socket);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -48,84 +62,103 @@ public class MessagesManager {
             }
         };
 
-        accept.setDaemon(true);
-        accept.start();
+        this.acceptThread.setDaemon(true);
+        this.acceptThread.start();
+    }
 
-        Thread consumer = new Thread("playerjoingroup.bungee.messagemanager.consumer") {
+    private void startConsumerThread() {
+        this.consumerThread = new Thread("playerjoingroup.bungee.messagemanager.consumer") {
             @Override
             public void run() {
-                while(!Thread.currentThread().isInterrupted()) { // TODO better loop control
-                    synchronized (messages) {
-                        if (messages.isEmpty()) {
-                            try {
-                                messages.wait();
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }
-
-                        Message msg = messages.remove();
-                        messages.notifyAll();
-
-                        // TODO chain of responsibility (maybe)?
-                        try {
-                            Packet packet = Protocol.deconstructPacket(msg.getMessage());
-
-                            String subchannel = packet.getSubchannel(); // TODO using subchannel might be depracated (simplify protocol?)
-                            switch (Subchannel.valueOf(subchannel)) {
-                                case BROADCAST:
-                                    sendToAll(packet);
-                                    break;
-
-                                case EVENT:
-                                    String eventType = packet.getField(ParamsKey.EVENT);
-                                    switch (EventType.typeof(eventType)) {
-                                        case FIRST_SPIGOT_CONNECTION -> onFirstConnection(packet.getData()); // TODO we don't receive it anymore
-                                        default -> MessagesManager.this.plugin.getLogger().warning("Unknown event: " + eventType);
-                                    }
-                                    break;
-
-                                case QUERY:
-                                    String queryType = packet.getField(ParamsKey.QUERY);
-                                    switch (QueryType.typeof(queryType)) {
-                                        case HAS_PLAYED_BEFORE_RESPONSE -> {
-                                            int hashCode = Integer.parseInt(packet.getField(ParamsKey.HASH_CODE));
-                                            boolean data = Boolean.parseBoolean(packet.getData());
-                                            notifySubscriber(hashCode, data);
-                                            unsubscribe(hashCode);
-                                        }
-                                        default -> MessagesManager.this.plugin.getLogger().warning("Unknown query: "+ queryType);
-                                    }
-                                    break;
-
-                                case HANDSHAKE: // TODO proper handshake (with Query?)
-                                    clients.put(packet.getData(), msg.getClient());
-
-                                    Packet ack = new Packet.Builder("HANDSHAKE")
-                                            .setData("ACK")
-                                            .build();
-                                    sendToOne(packet.getData(), ack);
-                                    break;
-
-                                default:
-                                    MessagesManager.this.plugin.getLogger().warning("Received packet with unknown subchannel: " + subchannel);
-                                    throw new UnknownSubchannelException(subchannel);
-                            }
-
-                        } catch (DeconstructPacketErrorException e) { // TODO better exception handling
-                            throw new RuntimeException(e);
-                        }  catch (IOException e) {
-                            throw new RuntimeException(e);
-                        } catch (UnknownSubchannelException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                }
+                MessagesManager.this.consumeMessage();
             }
         };
 
-        consumer.setDaemon(true);
-        consumer.start();
+        this.consumerThread.setDaemon(true);
+        this.consumerThread.start();
+    }
+
+    private void consumeMessage() {
+        while (!Thread.currentThread().isInterrupted() && this.isRunning.get()) {
+            synchronized (this.messages) {
+                if (this.messages.isEmpty())
+                    this.waitForMessage();
+
+                Message msg = this.messages.remove();
+                this.messages.notifyAll();
+
+                this.processMessage(msg);
+            }
+        }
+    }
+
+    private void waitForMessage() {
+        try {
+            this.messages.wait();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private void processMessage(Message message) {
+        try {
+            Packet packet = Protocol.deconstructPacket(message.getMessage());
+            ConnectionToClient client = message.getClient();
+            String subchannel = packet.getSubchannel();
+
+            this.handleMessageBySubchannel(subchannel, packet, client);
+
+
+
+        } catch (DeconstructPacketErrorException | IOException | UnknownSubchannelException err) {
+            this.plugin.getLogger().severe(Arrays.toString(err.getStackTrace()));
+        }
+    }
+
+    private void handleMessageBySubchannel(String subchannel, Packet packet, ConnectionToClient client)
+            throws IOException, UnknownSubchannelException {
+        Subchannel subchannelType = Subchannel.typeof(subchannel);
+
+        System.out.println("Received packet: " + packet.toString());
+
+        switch (subchannelType) {
+            case BROADCAST -> this.sendToAll(packet);
+            case EVENT -> this.handleEventSubchannel(packet);
+            case QUERY -> this.handleQuerySubchannel(packet);
+            case HANDSHAKE -> this.handleHandshakeSubchannel(packet, client);
+            default -> throw new UnknownSubchannelException(subchannel);
+        }
+    }
+
+    private void handleEventSubchannel(Packet packet) {
+        String eventType = packet.getField(ParamsKey.EVENT);
+        switch (EventType.typeof(eventType)) {
+            case FIRST_SPIGOT_CONNECTION -> onFirstConnection(packet.getData()); // TODO we don't receive it anymore
+            default -> MessagesManager.this.plugin.getLogger().warning("Unknown event: " + eventType);
+        }
+    }
+
+    private void handleQuerySubchannel(Packet packet) {
+        String queryType = packet.getField(ParamsKey.QUERY);
+        switch (QueryType.typeof(queryType)) {
+            case HAS_PLAYED_BEFORE_RESPONSE -> {
+                int hashCode = Integer.parseInt(packet.getField(ParamsKey.HASH_CODE));
+                boolean data = Boolean.parseBoolean(packet.getData());
+                notifySubscriber(hashCode, data);
+                unsubscribe(hashCode);
+            }
+            default -> MessagesManager.this.plugin.getLogger().warning("Unknown query: "+ queryType);
+        }
+    }
+
+    private void handleHandshakeSubchannel(Packet packet, ConnectionToClient client) throws IOException {
+        // TODO proper handshake (with Query?)
+        clients.put(packet.getData(), client);
+
+        Packet ack = new Packet.Builder("HANDSHAKE")
+                .setData("ACK")
+                .build();
+        sendToOne(packet.getData(), ack);
     }
 
     public void sendToOne(String server, Packet packet) throws IOException {
@@ -161,7 +194,7 @@ public class MessagesManager {
                     try {
                         sendToOne((String)server, packet);
                     } catch (IOException e) {
-                        throw new RuntimeException(e); // TODO better exception handle
+                        throw new RuntimeException(e); // TODO Handle Broken Pipe
                     }
                 });
             }
@@ -241,19 +274,24 @@ public class MessagesManager {
         private DataOutputStream dataOutputStream;
         private Socket socket;
 
+        private Thread handler;
+        private AtomicBoolean isConnected;
+
         public ConnectionToClient(Socket socket) throws IOException {
 
             if (socket.isClosed())
                 throw new IllegalStateException("Socket for client " + socket + " is closed.");
 
             this.socket = socket;
-            dataInputStream = new DataInputStream(socket.getInputStream());
-            dataOutputStream = new DataOutputStream(socket.getOutputStream());
+            this.dataInputStream = new DataInputStream(socket.getInputStream());
+            this.dataOutputStream = new DataOutputStream(socket.getOutputStream());
 
-            Thread handler = new Thread("playerjoingroup.bungee.messagemanager.socket") {
+            this.isConnected = new AtomicBoolean(true);
+
+            this.handler = new Thread("playerjoingroup.bungee.messagemanager.socket") {
                 @Override
                 public void run() {
-                    while(!socket.isClosed()) { // TODO, better loop control
+                    while(isConnected.get()) {
                         try {
                             int length = dataInputStream.readInt();
                             if (length > 0) {
@@ -280,6 +318,16 @@ public class MessagesManager {
         public void write(byte[] msg) throws IOException {
             dataOutputStream.writeInt(msg.length);
             dataOutputStream.write(msg);
+        }
+
+        public void close() throws IOException, InterruptedException {
+            this.isConnected.set(false);
+            this.socket.close();
+            this.handler.join();
+        }
+
+        public boolean isConnected() {
+            return this.isConnected.get();
         }
     }
 
