@@ -119,8 +119,6 @@ public class MessagesManager {
             throws IOException, UnknownSubchannelException {
         Subchannel subchannelType = Subchannel.typeof(subchannel);
 
-        System.out.println("Received packet: " + packet.toString());
-
         switch (subchannelType) {
             case BROADCAST -> this.sendToAll(packet);
             case EVENT -> this.handleEventSubchannel(packet);
@@ -151,7 +149,7 @@ public class MessagesManager {
         }
     }
 
-    private void handleHandshakeSubchannel(Packet packet, ConnectionToClient client) throws IOException {
+    private void handleHandshakeSubchannel(Packet packet, ConnectionToClient client) {
         // TODO proper handshake (with Query?)
         clients.put(packet.getData(), client);
 
@@ -161,7 +159,7 @@ public class MessagesManager {
         sendToOne(packet.getData(), ack);
     }
 
-    public void sendToOne(String server, Packet packet) throws IOException {
+    public void sendToOne(String server, Packet packet) {
 
         ServerInfo serverInfo = this.plugin.getProxy().getServerInfo(server);
         if (serverInfo == null) {
@@ -176,26 +174,29 @@ public class MessagesManager {
 
         try {
             clients.get(server).write(Protocol.constructPacket(packet));
-        } catch (InvalidPacketException e) { // TODO better exception handling
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        } catch (ConstructPacketErrorException e) {
+        } catch (IOException e) {
+            if (e.getMessage().contains("Broken pipe")) {
+                this.plugin.getLogger().warning("Broken pipe: Unable to send packet to \"" + server + "\", removing it from the list.");
+                ConnectionToClient connection = clients.remove(server);
+                try {
+                    connection.close();
+                } catch (IOException | InterruptedException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        } catch (InvalidPacketException | ConstructPacketErrorException e) { // TODO better exception handling
             e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
 
-    public void sendToAll(Packet packet) throws IOException {
+    public void sendToAll(Packet packet) {
         String group = packet.getField(ParamsKey.SERVER_GROUP);
 
         this.plugin.getConfig().getGroup().forEach((serverGroup, servers) -> {
             if (serverGroup.equals(group) || group.equals("ALL")) {
                 ((ArrayList) servers).forEach(server -> {
-                    try {
-                        sendToOne((String)server, packet);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e); // TODO Handle Broken Pipe
-                    }
+                    sendToOne((String)server, packet);
                 });
             }
         });
@@ -246,8 +247,6 @@ public class MessagesManager {
             } catch (InterruptedException e) { // TODO better exception handling
                 throw new RuntimeException(e);
             } catch (ExecutionException e) {
-                throw new RuntimeException(e);
-            } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         });
