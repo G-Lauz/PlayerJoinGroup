@@ -25,7 +25,6 @@ public class PlayerJoinListener implements Listener {
      */
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        // TODO doesn't seem right (you may use the Bukkit scheduler and regroup all the event from the socket together)
         Player player = event.getPlayer();
         if (!player.hasPlayedBefore() && PlayerJoinGroup.plugin.getFireworkBuilder().getActivateOnJoin())
             PlayerJoinGroup.plugin.getFireworkBuilder().spawn(player);

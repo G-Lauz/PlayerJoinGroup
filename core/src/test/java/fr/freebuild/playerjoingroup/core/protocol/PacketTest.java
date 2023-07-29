@@ -27,9 +27,9 @@ class PacketTest {
         assertEquals(packet.getSubchannel(), subchannel.getValue());
         assertEquals(packet.getData(), data);
 
-        Map<String, String> params = packet.getParams();
-        assertEquals(EventType.typeof(params.get(ParamsKey.EVENT.getValue())), event);
-        assertEquals(params.get(ParamsKey.SERVER_GROUP.getValue()), serverGroup);
+        Map<String, String> params = packet.getFields();
+        assertEquals(EventType.typeof(packet.getField(ParamsKey.EVENT)), event);
+        assertEquals(packet.getField(ParamsKey.SERVER_GROUP.getValue()), serverGroup);
         assertTrue(params.containsKey(key));
         assertEquals(params.get(key), value);
     }

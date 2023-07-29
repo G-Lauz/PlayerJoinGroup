@@ -28,6 +28,8 @@ services:
     image: g-lauz/spigot:1.19.4
     stdin_open: true
     tty: true
+    ports:
+        - "26001:25565"
     volumes:
       - ./spigot/server1/plugins:/app/server/plugins
   server2:
@@ -41,5 +43,7 @@ services:
     image: g-lauz/spigot:1.19.4
     stdin_open: true
     tty: true
+    ports:
+        - "26002:25565"
     volumes:
       - ./spigot/server2/plugins:/app/server/plugins

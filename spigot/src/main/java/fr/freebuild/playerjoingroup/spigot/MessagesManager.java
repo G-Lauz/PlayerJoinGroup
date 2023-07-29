@@ -18,10 +18,9 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.bukkit.Bukkit.*;
-
-// TODO split in different file?
 
 public class MessagesManager {
 
@@ -33,27 +32,37 @@ public class MessagesManager {
     private String ip;
     private int port;
 
+    private Thread connectionThread;
+    private Thread consumerThread;
+    private AtomicBoolean isRunning;
+
     public MessagesManager(String ip, int port, PlayerJoinGroup plugin) {
         this.messages = new LinkedList<>();
         this.ip = ip;
         this.port = port;
         this.plugin = plugin;
+
+        this.connectionThread = null;
+        this.consumerThread = null;
+
+        this.isRunning = new AtomicBoolean(false);
     }
 
     public void initialize() {
+        this.isRunning.set(true);
         this.connect();
         this.startConsumerThread();
     }
 
     private void connect() {
-        Thread connectionThread = new Thread("playerjoingroup.spigot.messagemanager.connection") {
+        this.connectionThread = new Thread("playerjoingroup.spigot.messagemanager.connection") {
             @Override
             public void run() {
                 int sleepTime = PlayerJoinGroup.plugin.getConfig().getInt("ReconnectDelay");
                 int reconnectAttempts = PlayerJoinGroup.plugin.getConfig().getInt("ReconnectAttempts");
 
                 int retryCount = 0;
-                while (retryCount < reconnectAttempts) {
+                while (retryCount < reconnectAttempts && MessagesManager.this.isRunning.get()) {
                     try {
                         Thread.sleep(sleepTime);
                         establishConnection();
@@ -69,7 +78,7 @@ public class MessagesManager {
 
                 getLogger().warning("Exceeded maximum retry attempts. Connection failed.");
                 getLogger().warning("Will use the default join message.");
-                MessagesManager.this.plugin.enableMessageManager(false);
+                MessagesManager.this.plugin.disableMessageManager();
             }
         };
 
@@ -85,19 +94,38 @@ public class MessagesManager {
         Bukkit.getPluginManager().callEvent(new SocketConnectedEvent(serverName));
     }
 
+    public void close() throws IOException, InterruptedException {
+        this.isRunning.set(false);
+
+        if (this.server != null)
+            this.server.close();
+
+        this.connectionThread.join();
+
+        if (this.consumerThread != null && this.consumerThread.isAlive()) {
+            this.consumerThread.interrupt();
+            this.consumerThread.join();
+        }
+    }
+
+    public boolean isRunning() {
+        return this.isRunning.get();
+    }
+
     private void startConsumerThread() {
-        Thread consumer = new Thread("playerjoingroup.spigot.messagemanager.consumer") {
+        this.consumerThread = new Thread("playerjoingroup.spigot.messagemanager.consumer") {
             @Override
             public void run() {
                 consumeMessage();
             }
         };
 
-        consumer.setDaemon(true);
-        consumer.start();
+        this.consumerThread.setDaemon(true);
+        this.consumerThread.start();
     }
+
     private void consumeMessage() {
-        while(!Thread.currentThread().isInterrupted()) {
+        while(!Thread.currentThread().isInterrupted() && this.isRunning.get()) {
             synchronized (messages) {
                 while (messages.isEmpty()) {
                     this.waitForMessage();
@@ -115,7 +143,7 @@ public class MessagesManager {
         try {
             messages.wait();
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -145,7 +173,7 @@ public class MessagesManager {
     }
 
     private void handleEventSubchannel(Packet packet) throws ConstructPacketErrorException, IOException, InvalidPacketException {
-        String event = packet.getParams().get(ParamsKey.EVENT.getValue());
+        String event = packet.getField(ParamsKey.EVENT);
         EventType eventType = EventType.typeof(event);
 
         switch (eventType) {
@@ -158,11 +186,11 @@ public class MessagesManager {
     }
 
     private void handleQuerySubchannel(Packet packet) throws ConstructPacketErrorException, IOException, InvalidPacketException {
-        String query = packet.getParams().get(ParamsKey.QUERY.getValue());
+        String query = packet.getField(ParamsKey.QUERY);
         QueryType queryType = QueryType.typeof(query);
 
         switch (queryType) {
-            case HAS_PLAYED_BEFORE -> onQueryHasPlayedBefore(packet.getParams().get(ParamsKey.HASH_CODE.getValue()), packet.getData());
+            case HAS_PLAYED_BEFORE -> onQueryHasPlayedBefore(packet.getField(ParamsKey.HASH_CODE), packet.getData());
             default -> getLogger().warning("Unknown query: " + query);
         }
     }
@@ -182,7 +210,7 @@ public class MessagesManager {
 
     private void onPlayerJoin(Packet packet) throws InvalidPacketException, ConstructPacketErrorException, IOException {
         OfflinePlayer player = getOfflinePlayer(UUID.fromString(packet.getData()));
-        String hashCode = packet.getParams().get(ParamsKey.HASH_CODE.getValue());
+        String hashCode = packet.getField(ParamsKey.HASH_CODE);
 
         Packet answer = new Packet.Builder(Subchannel.QUERY)
                 .setData(Boolean.toString(player.hasPlayedBefore()))
@@ -227,7 +255,10 @@ public class MessagesManager {
     private class ConnectionToServer {
         private DataInputStream dataInputStream;
         private DataOutputStream dataOutputStream;
-        Socket socket;
+        private Socket socket;
+
+        private AtomicBoolean isConnected;
+        private Thread handler;
 
         public ConnectionToServer(Socket socket) throws IOException {
             this.socket = socket;
@@ -238,12 +269,12 @@ public class MessagesManager {
             dataInputStream = new DataInputStream(socket.getInputStream());
             dataOutputStream = new DataOutputStream(socket.getOutputStream());
 
-            Thread handler = new Thread("playerjoingroup.spigot.messagemanager.socket") {
+            isConnected = new AtomicBoolean(true);
+
+            handler = new Thread("playerjoingroup.spigot.messagemanager.socket") {
                 @Override
                 public void run() {
-                    boolean isConnected = true;
-
-                    while (isConnected) {
+                    while (isConnected.get()) {
                         try {
                             int length = dataInputStream.readInt();
                             if (length > 0) {
@@ -256,13 +287,14 @@ public class MessagesManager {
                                 }
                             }
                         } catch (IOException error) {
-                            isConnected = false;
+                            isConnected.set(false);
                             getLogger().warning("Connection to server lost, will attempt to reconnect...");
                         }
                     }
 
                     // Attempt to reconnect a new instance
-                    MessagesManager.this.connect();
+                    if (MessagesManager.this.isRunning())
+                        MessagesManager.this.connect();
                 }
             };
 
@@ -273,6 +305,16 @@ public class MessagesManager {
         public void write(byte[] msg) throws IOException {
             dataOutputStream.writeInt(msg.length);
             dataOutputStream.write(msg);
+        }
+
+        public void close() throws IOException, InterruptedException {
+            isConnected.set(false);
+            socket.close();
+            handler.join();
+        }
+
+        public boolean isConnected() {
+            return isConnected.get();
         }
     }
 }
