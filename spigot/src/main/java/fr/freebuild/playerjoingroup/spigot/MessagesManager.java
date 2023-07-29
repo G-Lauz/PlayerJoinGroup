@@ -203,7 +203,7 @@ public class MessagesManager {
 
     private void onPlayerLeave(Packet packet) {
         if (canDisplayMessage(packet, "essentials.silentquit"))  {
-            String message = Utils.getPlayerLeaveMessage(packet.getParams().get("PLAYER_NAME"));
+            String message = Utils.getPlayerLeaveMessage(packet.getField("PLAYER_NAME"));
             getServer().broadcastMessage(message);
         }
     }
@@ -246,7 +246,7 @@ public class MessagesManager {
     }
 
     private Boolean canDisplayMessage(Packet packet, String perm) {
-        UUID playerUUID = UUID.fromString(packet.getParams().get(ParamsKey.PLAYER_UUID.getValue()));
+        UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
         Player player = getOfflinePlayer(playerUUID).getPlayer();
 
         return player == null || !player.hasPermission(perm);
