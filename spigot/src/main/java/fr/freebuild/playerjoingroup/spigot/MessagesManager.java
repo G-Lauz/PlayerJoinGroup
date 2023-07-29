@@ -8,6 +8,7 @@ import fr.freebuild.playerjoingroup.spigot.utils.Utils;
 
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -20,7 +21,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.bukkit.Bukkit.*;
-import static org.bukkit.Bukkit.getServer;
 
 public class MessagesManager {
 
@@ -179,7 +179,7 @@ public class MessagesManager {
         switch (eventType) {
             case JOIN_SERVER_GROUP -> onPlayerJoin(packet);
             case LEAVE_SERVER_GROUP -> onPlayerLeave(packet);
-            case FIRST_GROUP_CONNECTION -> onFirstConnection(packet.getData());
+            case FIRST_GROUP_CONNECTION -> onFirstConnection(packet);
             case HAS_PLAYED_BEFORE -> onHasPlayedBefore(packet);
             default -> getLogger().warning("Unknown event: " + event);
         }
@@ -202,10 +202,10 @@ public class MessagesManager {
     }
 
     private void onPlayerLeave(Packet packet) {
-        String playerName = packet.getField("PLAYER_NAME");
-        String message = Utils.getConfigString("QuitMessage");
-        message = Utils.format(message, FormatParam.PLAYER, playerName);
-        getServer().broadcastMessage(message);
+        if (canDisplayMessage(packet, "essentials.silentquit"))  {
+            String message = Utils.getPlayerLeaveMessage(packet.getParams().get("PLAYER_NAME"));
+            getServer().broadcastMessage(message);
+        }
     }
 
     private void onPlayerJoin(Packet packet) throws InvalidPacketException, ConstructPacketErrorException, IOException {
@@ -231,18 +231,25 @@ public class MessagesManager {
         this.send(Protocol.constructPacket(packet));
     }
 
-    private void onFirstConnection(String playerName) {
-        String message = Utils.getConfigString("FirstJoinMessage");
-        final Integer counter = Utils.increaseCounter("PlayerCounter");
-        message = Utils.format(message, FormatParam.COUNTER, counter.toString());
-        message = Utils.format(message, FormatParam.PLAYER, playerName);
-        getServer().broadcastMessage(message);
+    private void onFirstConnection(Packet packet) {
+        if (canDisplayMessage(packet, "essentials.silentjoin"))  {
+            String message = Utils.getFirstConnectionMessage(packet.getData());
+            getServer().broadcastMessage(message);
+        }
     }
 
     private void onHasPlayedBefore(Packet packet) {
-        String message = Utils.getConfigString("JoinMessage");
-        message = Utils.format(message, FormatParam.PLAYER, packet.getData());
-        getServer().broadcastMessage(message);
+        if (canDisplayMessage(packet, "essentials.silentjoin"))  {
+            String message = Utils.getHasPlayedBeforeMessage(packet.getData());
+            getServer().broadcastMessage(message);
+        }
+    }
+
+    private Boolean canDisplayMessage(Packet packet, String perm) {
+        UUID playerUUID = UUID.fromString(packet.getParams().get(ParamsKey.PLAYER_UUID.getValue()));
+        Player player = getOfflinePlayer(playerUUID).getPlayer();
+
+        return player == null || !player.hasPermission(perm);
     }
 
     private class ConnectionToServer {

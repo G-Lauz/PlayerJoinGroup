@@ -168,8 +168,8 @@ public class MessagesManager {
         });
     }
 
-    public void sendQueryHasPlayedBefore(String serverName, String playerUUID) { // TODO refactor / extract methods / make  Query a core component
-        ProxiedPlayer player =  this.plugin.getProxy().getPlayer(UUID.fromString(playerUUID));
+    public void sendQueryHasPlayedBefore(String serverName, ProxiedPlayer player) { // TODO refactor / extract methods / make  Query a core component
+        UUID playerUUID =  player.getUniqueId();
         Config config = this.plugin.getConfig();
         String group = Utils.getServerGroupName(serverName, config);
 
@@ -177,7 +177,7 @@ public class MessagesManager {
         int queryHashCode = query.hashCode();
 
         Packet packet = new Packet.Builder(Subchannel.QUERY)
-                .setData(playerUUID)
+                .setData(playerUUID.toString())
                 .setQuery(QueryType.HAS_PLAYED_BEFORE)
                 .setServerGroup(group) // TODO refactor (simplify packet)
                 .setHashCode(queryHashCode)
@@ -196,12 +196,14 @@ public class MessagesManager {
                     Packet hasPlayedBeforePacket = new Packet.Builder(Subchannel.EVENT)
                             .setData(player.getName())
                             .setEventType(EventType.HAS_PLAYED_BEFORE)
+                            .setPlayerUuid(playerUUID)
                             .setServerGroup(group)
                             .build();
                     sendToAll(hasPlayedBeforePacket);
                 } else {
                     Packet greetingPacket = new Packet.Builder(Subchannel.EVENT)
                             .setData(player.getName())
+                            .setPlayerUuid(playerUUID)
                             .setEventType(EventType.FIRST_GROUP_CONNECTION)
                             .setServerGroup(group) // TODO refactor (simplify packet)
                             .build();

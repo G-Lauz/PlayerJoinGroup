@@ -3,6 +3,7 @@ package fr.freebuild.playerjoingroup.core.protocol;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 
 import java.util.Map;
+import java.util.UUID;
 
 public class Packet {
     private String subchannel;
@@ -48,6 +49,10 @@ public class Packet {
         public Builder setQuery(QueryType query) {
             this.fieldManager.setField(ParamsKey.QUERY, query.getValue());
             return this;
+        }
+
+        public Builder setPlayerUuid(UUID uuid) {
+            return this.appendParam(ParamsKey.PLAYER_UUID.getValue(), uuid.toString());
         }
 
         public Builder setHashCode(Integer hashCode) {
