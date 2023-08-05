@@ -24,7 +24,7 @@ class QuerySpigotServerTest {
     private MessagesManager messagesManager;
 
     @Test
-    void testQueryDelayedAnswer() throws ExecutionException, InterruptedException, InvalidPacketException, ConstructPacketErrorException, IOException {
+    void testQueryDelayedAnswer() throws ExecutionException, InterruptedException {
         ExecutorService service = Executors.newFixedThreadPool(2);
 
         QuerySpigotServer<Boolean> query = spy(new QuerySpigotServer<>("server1", this.packet, this.messagesManager));

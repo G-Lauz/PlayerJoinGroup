@@ -39,7 +39,7 @@ public class QuerySpigotServer<T> implements Callable<T>, Observer<T> {
     }
 
     @Override
-    public T call() throws InterruptedException, InvalidPacketException, ConstructPacketErrorException, IOException {
+    public T call() throws InterruptedException {
         this.idle = true;
 
         this.sendQuery();
@@ -61,7 +61,7 @@ public class QuerySpigotServer<T> implements Callable<T>, Observer<T> {
         }
     }
 
-    public void sendQuery() throws IOException {
+    public void sendQuery() {
         this.messagesManager.sendToOne(this.target, this.request);
     }
 

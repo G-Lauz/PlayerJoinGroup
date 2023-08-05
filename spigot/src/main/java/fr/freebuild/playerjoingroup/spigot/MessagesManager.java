@@ -127,9 +127,12 @@ public class MessagesManager {
     private void consumeMessage() {
         while(!Thread.currentThread().isInterrupted() && this.isRunning.get()) {
             synchronized (messages) {
-                while (messages.isEmpty()) {
+                while (messages.isEmpty() && !Thread.currentThread().isInterrupted()) {
                     this.waitForMessage();
                 }
+
+                if (Thread.currentThread().isInterrupted())
+                    break;
 
                 byte[] msg = messages.remove();
                 messages.notifyAll();

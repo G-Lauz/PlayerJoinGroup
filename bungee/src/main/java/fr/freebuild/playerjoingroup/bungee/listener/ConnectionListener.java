@@ -46,11 +46,7 @@ public abstract class ConnectionListener implements Listener {
                 .setServerGroup(group)
                 .build();
 
-        try {
-            this.plugin.getMessagesManager().sendToAll(packet);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        this.plugin.getMessagesManager().sendToAll(packet);
     }
 
     protected void scheduledBroadcastEvent(ServerInfo serverInfo, ProxiedPlayer player, EventType event, int delay) {
