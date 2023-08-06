@@ -17,12 +17,12 @@ public enum Subchannel {
         return value;
     }
 
-    public static Subchannel typeof(String value) {
+    public static Subchannel typeof(String value) throws UnknownSubchannelException {
         for (Subchannel type : Subchannel.values()) {
             if (type.getValue().equalsIgnoreCase(value))
                 return type;
         }
 
-        throw new IllegalArgumentException("No Subchannel enum with value \"" + value + "\" found.");
+        throw new UnknownSubchannelException(value);
     }
 }

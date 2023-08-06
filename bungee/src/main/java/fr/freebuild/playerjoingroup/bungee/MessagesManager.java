@@ -55,8 +55,9 @@ public class MessagesManager {
                     try {
                         Socket socket = serverSocket.accept();
                         new ConnectionToClient(socket);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
+                    } catch (IOException err) {
+                        MessagesManager.this.plugin.getLogger().severe(err.getMessage());
+                        throw new RuntimeException(err);
                     }
                 }
             }
@@ -107,9 +108,6 @@ public class MessagesManager {
             String subchannel = packet.getSubchannel();
 
             this.handleMessageBySubchannel(subchannel, packet, client);
-
-
-
         } catch (DeconstructPacketErrorException | IOException | UnknownSubchannelException err) {
             this.plugin.getLogger().severe(Arrays.toString(err.getStackTrace()));
         }
@@ -124,7 +122,7 @@ public class MessagesManager {
             case EVENT -> this.handleEventSubchannel(packet);
             case QUERY -> this.handleQuerySubchannel(packet);
             case HANDSHAKE -> this.handleHandshakeSubchannel(packet, client);
-            default -> throw new UnknownSubchannelException(subchannel);
+            default -> throw new UnknownSubchannelException(subchannel, "Will ignore this message");
         }
     }
 
@@ -180,13 +178,14 @@ public class MessagesManager {
                 ConnectionToClient connection = clients.remove(server);
                 try {
                     connection.close();
-                } catch (IOException | InterruptedException ex) {
-                    throw new RuntimeException(ex);
+                } catch (IOException | InterruptedException err) {
+                    this.plugin.getLogger().severe(Arrays.toString(err.getStackTrace()));
+                    throw new RuntimeException(err);
                 }
             }
-        } catch (InvalidPacketException | ConstructPacketErrorException e) { // TODO better exception handling
-            e.printStackTrace();
-            throw new RuntimeException(e);
+        } catch (InvalidPacketException | ConstructPacketErrorException err) { // TODO better exception handling
+            this.plugin.getLogger().severe(Arrays.toString(err.getStackTrace()));
+            throw new RuntimeException(err);
         }
     }
 
@@ -244,10 +243,9 @@ public class MessagesManager {
                     sendToAll(greetingPacket);
                 }
 
-            } catch (InterruptedException e) { // TODO better exception handling
-                throw new RuntimeException(e);
-            } catch (ExecutionException e) {
-                throw new RuntimeException(e);
+            } catch (ExecutionException | InterruptedException err) { // TODO better exception handling
+                this.plugin.getLogger().severe(Arrays.toString(err.getStackTrace()));
+                throw new RuntimeException(err);
             }
         });
     }

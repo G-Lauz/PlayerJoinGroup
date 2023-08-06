@@ -157,12 +157,13 @@ public class MessagesManager {
 
             this.handleMessageBySubchannel(subchannel, packet);
         } catch (DeconstructPacketErrorException | InvalidPacketException |
-                 ConstructPacketErrorException | IOException err) {
+                 ConstructPacketErrorException | IOException | UnknownSubchannelException err) {
             getLogger().severe(Arrays.toString(err.getStackTrace()));
         }
     }
 
-    private void handleMessageBySubchannel(String subchannel, Packet packet) throws ConstructPacketErrorException, IOException, InvalidPacketException {
+    private void handleMessageBySubchannel(String subchannel, Packet packet)
+            throws ConstructPacketErrorException, IOException, InvalidPacketException, UnknownSubchannelException {
         Subchannel subchannelType = Subchannel.typeof(subchannel);
 
         switch (subchannelType) {
@@ -291,6 +292,7 @@ public class MessagesManager {
                             }
                         } catch (IOException error) {
                             isConnected.set(false);
+                            getLogger().warning(error.getMessage());
                             getLogger().warning("Connection to server lost, will attempt to reconnect...");
                         }
                     }
