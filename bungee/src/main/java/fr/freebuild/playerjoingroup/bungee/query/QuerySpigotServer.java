@@ -1,17 +1,8 @@
 package fr.freebuild.playerjoingroup.bungee.query;
 
 import fr.freebuild.playerjoingroup.bungee.MessagesManager;
-import fr.freebuild.playerjoingroup.bungee.PlayerJoinGroup;
-import fr.freebuild.playerjoingroup.core.protocol.ConstructPacketErrorException;
-import fr.freebuild.playerjoingroup.core.protocol.InvalidPacketException;
 import fr.freebuild.playerjoingroup.core.protocol.Packet;
-import fr.freebuild.playerjoingroup.core.protocol.Protocol;
 
-import net.md_5.bungee.api.config.ServerInfo;
-import net.md_5.bungee.api.connection.ProxiedPlayer;
-
-import java.io.IOException;
-import java.util.Collection;
 import java.util.concurrent.Callable;
 
 public class QuerySpigotServer<T> implements Callable<T>, Observer<T> {

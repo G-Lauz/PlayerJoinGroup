@@ -1,6 +1,7 @@
 package fr.freebuild.playerjoingroup.bungee;
 
 import fr.freebuild.playerjoingroup.bungee.query.QuerySpigotServer;
+import fr.freebuild.playerjoingroup.core.Command;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 import net.md_5.bungee.api.config.ServerInfo;
@@ -12,7 +13,6 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
-import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MessagesManager {
@@ -27,6 +27,9 @@ public class MessagesManager {
 
     private HashMap<Integer, QuerySpigotServer<Boolean>> subscribers;
 
+    private HashMap<Integer, Command> commandIndex;
+    private final Object lock = new Object();
+
     public MessagesManager(PlayerJoinGroup plugin, int port) throws IOException {
         this.plugin = plugin;
 
@@ -39,6 +42,8 @@ public class MessagesManager {
         this.consumerThread = null;
 
         this.isRunning = new AtomicBoolean(false);
+
+        this.commandIndex = new HashMap<>();
     }
 
     public void initialize() {
@@ -101,7 +106,48 @@ public class MessagesManager {
         }
     }
 
+    private void gatherThreadInfo(ThreadGroup group, Map<Thread, Thread.State> threadInfo) {
+        Thread[] threads = new Thread[group.activeCount()];
+        int numThreads = group.enumerate(threads);
+        for (int i = 0; i < numThreads; i++) {
+            threadInfo.put(threads[i], threads[i].getState());
+        }
+
+        ThreadGroup[] subGroups = new ThreadGroup[group.activeGroupCount()];
+        int numGroups = group.enumerate(subGroups);
+        for (int i = 0; i < numGroups; i++) {
+            this.gatherThreadInfo(subGroups[i], threadInfo);
+        }
+    }
+
+    private void printThreadInfo(Map<Thread, Thread.State> threadInfo) {
+        this.plugin.getLogger().info("Number of threads: " + threadInfo.size());
+        this.plugin.getLogger().info("--------------------------------------------------------------------------");
+        for (Map.Entry<Thread, Thread.State> entry : threadInfo.entrySet()) {
+//            this.plugin.getLogger().info(entry.getKey().getName() + " (" + entry.getKey().getId() + "): " + entry.getValue());
+            if (entry.getKey().getName().startsWith("Netty")) {
+                this.plugin.getLogger().info(entry.getKey().getName() + " (" + entry.getKey().getId() + "): " + entry.getValue());
+                // print stack trace of the thread in a readable format
+                StackTraceElement[] stackTrace = entry.getKey().getStackTrace();
+                for (StackTraceElement stackTraceElement : stackTrace) {
+                    this.plugin.getLogger().info("\t" + stackTraceElement.toString());
+                }
+            }
+        }
+        this.plugin.getLogger().info("--------------------------------------------------------------------------");
+    }
+
     private void processMessage(Message message) {
+        ThreadGroup rootGroup = Thread.currentThread().getThreadGroup();
+        ThreadGroup parentGroup;
+        while ((parentGroup = rootGroup.getParent()) != null) {
+            rootGroup = parentGroup;
+        }
+
+        Map<Thread, Thread.State> threadInfo = new HashMap<>();
+        this.gatherThreadInfo(rootGroup, threadInfo);
+        this.printThreadInfo(threadInfo);
+
         try {
             Packet packet = Protocol.deconstructPacket(message.getMessage());
             ConnectionToClient client = message.getClient();
@@ -130,18 +176,28 @@ public class MessagesManager {
         String eventType = packet.getField(ParamsKey.EVENT);
         switch (EventType.typeof(eventType)) {
             case FIRST_SPIGOT_CONNECTION -> onFirstConnection(packet.getData()); // TODO we don't receive it anymore
+            case SERVER_DISCONNECT -> onServerDisconnect(packet);
             default -> MessagesManager.this.plugin.getLogger().warning("Unknown event: " + eventType);
         }
     }
 
     private void handleQuerySubchannel(Packet packet) {
+        this.plugin.getLogger().info("Received query: ");
+        this.plugin.getLogger().info(packet.toString());
+
         String queryType = packet.getField(ParamsKey.QUERY);
         switch (QueryType.typeof(queryType)) {
             case HAS_PLAYED_BEFORE_RESPONSE -> {
-                int hashCode = Integer.parseInt(packet.getField(ParamsKey.HASH_CODE));
-                boolean data = Boolean.parseBoolean(packet.getData());
-                notifySubscriber(hashCode, data);
-                unsubscribe(hashCode);
+                boolean hasPlayedBefore = Boolean.parseBoolean(packet.getData());
+                EventType eventType = hasPlayedBefore ? EventType.HAS_PLAYED_BEFORE : EventType.FIRST_GROUP_CONNECTION;
+
+                Packet eventPacket = new Packet.Builder(Subchannel.EVENT)
+                        .setEventType(eventType)
+                        .setData(packet.getField("PLAYER_NAME"))
+                        .setPlayerUuid(UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID)))
+                        .setServerGroup(Utils.getServerGroupName(packet.getField("SERVER_NAME"), this.plugin.getConfig()))
+                        .build();
+                sendToAll(eventPacket);
             }
             default -> MessagesManager.this.plugin.getLogger().warning("Unknown query: "+ queryType);
         }
@@ -201,55 +257,6 @@ public class MessagesManager {
         });
     }
 
-    public void sendQueryHasPlayedBefore(String serverName, ProxiedPlayer player) { // TODO refactor / extract methods / make  Query a core component
-        UUID playerUUID =  player.getUniqueId();
-        Config config = this.plugin.getConfig();
-        String group = Utils.getServerGroupName(serverName, config);
-
-        QuerySpigotServer<Boolean> query = new QuerySpigotServer<>(serverName, MessagesManager.this);
-        int queryHashCode = query.hashCode();
-
-        Packet packet = new Packet.Builder(Subchannel.QUERY)
-                .setData(playerUUID.toString())
-                .setQuery(QueryType.HAS_PLAYED_BEFORE)
-                .setServerGroup(group) // TODO refactor (simplify packet)
-                .setHashCode(queryHashCode)
-                .build();
-        query.setRequest(packet);
-
-        this.subscribe(queryHashCode, query);
-
-        ExecutorService services = Executors.newFixedThreadPool(2);
-        Future<Boolean> response = services.submit(query);
-        services.submit(() -> {
-            try {
-                boolean hasPlayedBefore = response.get();
-
-                if (hasPlayedBefore) {
-                    Packet hasPlayedBeforePacket = new Packet.Builder(Subchannel.EVENT)
-                            .setData(player.getName())
-                            .setEventType(EventType.HAS_PLAYED_BEFORE)
-                            .setPlayerUuid(playerUUID)
-                            .setServerGroup(group)
-                            .build();
-                    sendToAll(hasPlayedBeforePacket);
-                } else {
-                    Packet greetingPacket = new Packet.Builder(Subchannel.EVENT)
-                            .setData(player.getName())
-                            .setPlayerUuid(playerUUID)
-                            .setEventType(EventType.FIRST_GROUP_CONNECTION)
-                            .setServerGroup(group) // TODO refactor (simplify packet)
-                            .build();
-                    sendToAll(greetingPacket);
-                }
-
-            } catch (ExecutionException | InterruptedException err) { // TODO better exception handling
-                this.plugin.getLogger().severe(Arrays.toString(err.getStackTrace()));
-                throw new RuntimeException(err);
-            }
-        });
-    }
-
     private void onFirstConnection(String playerUUID) {
         this.plugin.getLogger().warning("OnFirstConnection not implemented yet.");
     }
@@ -264,6 +271,36 @@ public class MessagesManager {
 
     private void notifySubscriber(int hash, boolean hasPlayedBefore) {
         this.subscribers.get(hash).update(hasPlayedBefore);
+    }
+
+    public void addCommand(Command command) {
+        synchronized (this.lock) {
+            this.commandIndex.put(command.hashCode(), command);
+        }
+    }
+
+    public void removeCommand(int hash) {
+        synchronized (this.lock) {
+            this.commandIndex.remove(hash);
+        }
+    }
+
+    private void onServerDisconnect(Packet packet) {
+        String playerUUID = packet.getField(ParamsKey.PLAYER_UUID);
+        String playerName = packet.getField("PLAYER_NAME");
+        String serverName = packet.getField("SERVER_NAME");
+
+        String serverGroup = Utils.getServerGroupName(serverName, this.plugin.getConfig());
+
+        Packet disconnectionPacket = new Packet.Builder(Subchannel.EVENT)
+                .setEventType(EventType.LEAVE_SERVER_GROUP)
+                .setData(playerUUID)
+                .appendParam("PLAYER_NAME", playerName)
+                .setPlayerUuid(UUID.fromString(playerUUID))
+                .setServerGroup(serverGroup)
+                .build();
+
+        this.plugin.getMessagesManager().sendToAll(disconnectionPacket);
     }
 
     private class ConnectionToClient {

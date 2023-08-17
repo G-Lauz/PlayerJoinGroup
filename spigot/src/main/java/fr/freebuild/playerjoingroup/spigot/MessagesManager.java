@@ -1,9 +1,9 @@
 package fr.freebuild.playerjoingroup.spigot;
 
+import fr.freebuild.playerjoingroup.core.Command;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 import fr.freebuild.playerjoingroup.spigot.event.SocketConnectedEvent;
-import fr.freebuild.playerjoingroup.spigot.utils.FormatParam;
 import fr.freebuild.playerjoingroup.spigot.utils.Utils;
 
 import org.bukkit.Bukkit;
@@ -14,10 +14,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.UUID;
+import java.util.*;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.bukkit.Bukkit.*;
@@ -35,6 +33,8 @@ public class MessagesManager {
     private Thread connectionThread;
     private Thread consumerThread;
     private AtomicBoolean isRunning;
+    private HashMap<Integer, Command> commandIndex;
+    private final Object lock = new Object();
 
     public MessagesManager(String ip, int port, PlayerJoinGroup plugin) {
         this.messages = new LinkedList<>();
@@ -46,6 +46,8 @@ public class MessagesManager {
         this.consumerThread = null;
 
         this.isRunning = new AtomicBoolean(false);
+
+        this.commandIndex = new HashMap<>();
     }
 
     public void initialize() {
@@ -185,6 +187,8 @@ public class MessagesManager {
             case LEAVE_SERVER_GROUP -> onPlayerLeave(packet);
             case FIRST_GROUP_CONNECTION -> onFirstConnection(packet);
             case HAS_PLAYED_BEFORE -> onHasPlayedBefore(packet);
+            case SERVER_CONNECT -> onServerConnect(packet);
+            case SERVER_DISCONNECT -> onServerDisconnect(packet);
             default -> getLogger().warning("Unknown event: " + event);
         }
     }
@@ -254,6 +258,82 @@ public class MessagesManager {
         Player player = getOfflinePlayer(playerUUID).getPlayer();
 
         return player == null || !player.hasPermission(perm);
+    }
+
+    public void addCommand(Command command) {
+        synchronized (this.lock) {
+            this.commandIndex.put(command.hashCode(), command);
+        }
+    }
+
+    private void removeCommand(Command command) {
+        synchronized (this.lock) {
+            this.commandIndex.remove(command.hashCode());
+        }
+    }
+
+    private <T> void executeCommand(int hashCode, T context) throws CommandExecutionException {
+        synchronized (this.lock) {
+            Command command = this.commandIndex.get(hashCode);
+
+            if (command == null)
+                throw new CommandExecutionException("Command with hashcode " + hashCode + " not found.", false);
+
+            if (command.isExpired()) {
+                this.commandIndex.remove(hashCode);
+                throw new CommandExecutionException("Command with hashcode " + hashCode + " is expired.", true);
+            }
+
+            command.execute(context);
+            this.commandIndex.remove(hashCode);
+        }
+    }
+
+    public <T> void executeOrAddCommand(Command command, T context) {
+        this.removeExpiredCommand();
+
+        try {
+            this.executeCommand(command.hashCode(), context);
+        } catch (CommandExecutionException err) {
+            if (err.commandIsExpired())
+                this.plugin.getLogger().warning("Command " + command.hashCode() + " is expired.");
+            else
+                this.addCommand(command);
+        }
+    }
+
+    public void removeExpiredCommand() {
+        synchronized (this.lock) {
+            Iterator<Map.Entry<Integer, Command>> iterator = this.commandIndex.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<Integer, Command> entry = iterator.next();
+                if (entry.getValue().isExpired())
+                    iterator.remove();
+            }
+        }
+    }
+
+    private void onServerConnect(Packet packet) {
+        String event = packet.getField(ParamsKey.EVENT);
+        String serverName = packet.getField("SERVER_NAME");
+        String playerName = packet.getField("PLAYER_NAME");
+        UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
+
+        OfflinePlayer player = this.plugin.getServer().getOfflinePlayer(playerUUID);
+        boolean hasPlayedBefore = player.hasPlayedBefore();
+
+        ConnectCommand command = new ConnectCommand(this.plugin, serverName, playerName, playerUUID, event, 1000);
+        this.executeOrAddCommand(command, hasPlayedBefore);
+    }
+
+    private void onServerDisconnect(Packet packet) {
+        String event = packet.getField(ParamsKey.EVENT);
+        String serverName = packet.getField("SERVER_NAME");
+        String playerName = packet.getField("PLAYER_NAME");
+        UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
+
+        DisconnectCommand command = new DisconnectCommand(this.plugin, serverName, playerName, playerUUID, event, 1000);
+        this.executeOrAddCommand(command, null);
     }
 
     private class ConnectionToServer {

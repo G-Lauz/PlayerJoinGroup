@@ -1,5 +1,8 @@
 package fr.freebuild.playerjoingroup.spigot.listener;
 
+import fr.freebuild.playerjoingroup.core.event.EventType;
+import fr.freebuild.playerjoingroup.spigot.ConnectCommand;
+import fr.freebuild.playerjoingroup.spigot.DisconnectCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -8,6 +11,9 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 import fr.freebuild.playerjoingroup.spigot.PlayerJoinGroup;
 import fr.freebuild.playerjoingroup.spigot.utils.Utils;
+
+import java.util.Objects;
+import java.util.UUID;
 
 public class PlayerJoinListener implements Listener {
 
@@ -19,7 +25,7 @@ public class PlayerJoinListener implements Listener {
 
     /**
      * Called when player join
-     * Overridade default message
+     * Override default message
      *
      * @param event
      */
@@ -39,6 +45,14 @@ public class PlayerJoinListener implements Listener {
         } else {
             event.setJoinMessage(null);
         }
+
+        String serverName = this.plugin.getConfig().getString("ServerName");
+        UUID playerUUID = player.getUniqueId();
+        String playerName = player.getDisplayName();
+        String eventName = EventType.SERVER_CONNECT.getValue();
+
+        ConnectCommand command = new ConnectCommand(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
+        this.plugin.getMessageManager().executeOrAddCommand(command, player.hasPlayedBefore());
     }
 
     /**
@@ -53,6 +67,14 @@ public class PlayerJoinListener implements Listener {
             event.setQuitMessage(Utils.getPlayerLeaveMessage(event.getPlayer().getDisplayName()));
         else
             event.setQuitMessage(null);
+
+        String serverName = this.plugin.getConfig().getString("ServerName");
+        UUID playerUUID = event.getPlayer().getUniqueId();
+        String playerName = event.getPlayer().getDisplayName();
+        String eventName = EventType.SERVER_DISCONNECT.getValue();
+
+        DisconnectCommand command = new DisconnectCommand(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
+        this.plugin.getMessageManager().executeOrAddCommand(command, null);
     }
 
 }

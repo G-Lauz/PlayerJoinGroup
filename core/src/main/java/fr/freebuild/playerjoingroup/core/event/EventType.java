@@ -5,7 +5,9 @@ public enum EventType {
     LEAVE_SERVER_GROUP("LeaveServerGroup"),
     FIRST_GROUP_CONNECTION("FirstGroupConnection"),
     FIRST_SPIGOT_CONNECTION("FirstSpigotConnection"),
-    HAS_PLAYED_BEFORE("HasPlayedBefore");
+    HAS_PLAYED_BEFORE("HasPlayedBefore"),
+    SERVER_CONNECT("ServerConnect"),
+    SERVER_DISCONNECT("ServerDisconnect");
 
     private String value;
 
