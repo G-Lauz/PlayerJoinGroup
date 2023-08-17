@@ -220,11 +220,14 @@ public class MessagesManager {
         String playerName = packet.getField("PLAYER_NAME");
         UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
 
-        OfflinePlayer player = this.plugin.getServer().getOfflinePlayer(playerUUID);
-        boolean hasPlayedBefore = player.hasPlayedBefore();
+        OfflinePlayer offlinePlayer = this.plugin.getServer().getOfflinePlayer(playerUUID);
+        Player player = offlinePlayer.getPlayer();
 
-        ConnectAction command = new ConnectAction(this.plugin, serverName, playerName, playerUUID, event, 1000);
-        this.executeOrAddCommand(command, hasPlayedBefore);
+        if (player == null || !player.hasPermission("essentials.silentjoin")) {
+            boolean hasPlayedBefore = offlinePlayer.hasPlayedBefore();
+            ConnectAction command = new ConnectAction(this.plugin, serverName, playerName, playerUUID, event, 1000);
+            this.executeOrAddCommand(command, hasPlayedBefore);
+        }
     }
 
     private void onServerDisconnect(Packet packet) {
@@ -233,8 +236,13 @@ public class MessagesManager {
         String playerName = packet.getField("PLAYER_NAME");
         UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
 
-        DisconnectAction command = new DisconnectAction(this.plugin, serverName, playerName, playerUUID, event, 1000);
-        this.executeOrAddCommand(command, null);
+        OfflinePlayer offlinePlayer = this.plugin.getServer().getOfflinePlayer(playerUUID);
+        Player player = offlinePlayer.getPlayer();
+
+        if (player == null || !player.hasPermission("essentials.silentquit")) {
+            DisconnectAction command = new DisconnectAction(this.plugin, serverName, playerName, playerUUID, event, 1000);
+            this.executeOrAddCommand(command, null);
+        }
     }
 
     private Boolean canDisplayMessage(Packet packet, String perm) {

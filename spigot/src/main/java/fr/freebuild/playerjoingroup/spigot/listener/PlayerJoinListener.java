@@ -3,6 +3,7 @@ package fr.freebuild.playerjoingroup.spigot.listener;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.spigot.actions.ConnectAction;
 import fr.freebuild.playerjoingroup.spigot.actions.DisconnectAction;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -50,8 +51,10 @@ public class PlayerJoinListener implements Listener {
         String playerName = player.getDisplayName();
         String eventName = EventType.SERVER_CONNECT.getValue();
 
-        ConnectAction command = new ConnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
-        this.plugin.getMessageManager().executeOrAddCommand(command, player.hasPlayedBefore());
+        if (player == null || !player.hasPermission("essentials.silentjoin")) {
+            ConnectAction action = new ConnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
+            this.plugin.getMessageManager().executeOrAddCommand(action, player.hasPlayedBefore());
+        }
     }
 
     /**
@@ -72,8 +75,12 @@ public class PlayerJoinListener implements Listener {
         String playerName = event.getPlayer().getDisplayName();
         String eventName = EventType.SERVER_DISCONNECT.getValue();
 
-        DisconnectAction command = new DisconnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
-        this.plugin.getMessageManager().executeOrAddCommand(command, null);
+        Player player = event.getPlayer();
+
+        if (player == null || !player.hasPermission("essentials.silentquit")) {
+            DisconnectAction action = new DisconnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
+            this.plugin.getMessageManager().executeOrAddCommand(action, null);
+        }
     }
 
 }
