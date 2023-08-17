@@ -1,5 +1,9 @@
 package fr.freebuild.playerjoingroup.spigot.listener;
 
+import fr.freebuild.playerjoingroup.core.event.EventType;
+import fr.freebuild.playerjoingroup.spigot.actions.ConnectAction;
+import fr.freebuild.playerjoingroup.spigot.actions.DisconnectAction;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -8,6 +12,8 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 import fr.freebuild.playerjoingroup.spigot.PlayerJoinGroup;
 import fr.freebuild.playerjoingroup.spigot.utils.Utils;
+
+import java.util.UUID;
 
 public class PlayerJoinListener implements Listener {
 
@@ -19,7 +25,7 @@ public class PlayerJoinListener implements Listener {
 
     /**
      * Called when player join
-     * Overridade default message
+     * Override default message
      *
      * @param event
      */
@@ -39,6 +45,16 @@ public class PlayerJoinListener implements Listener {
         } else {
             event.setJoinMessage(null);
         }
+
+        String serverName = this.plugin.getConfig().getString("ServerName");
+        UUID playerUUID = player.getUniqueId();
+        String playerName = player.getDisplayName();
+        String eventName = EventType.SERVER_CONNECT.getValue();
+
+        if (player == null || !player.hasPermission("essentials.silentjoin")) {
+            ConnectAction action = new ConnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
+            this.plugin.getMessageManager().executeOrAddCommand(action, player.hasPlayedBefore());
+        }
     }
 
     /**
@@ -53,6 +69,18 @@ public class PlayerJoinListener implements Listener {
             event.setQuitMessage(Utils.getPlayerLeaveMessage(event.getPlayer().getDisplayName()));
         else
             event.setQuitMessage(null);
+
+        String serverName = this.plugin.getConfig().getString("ServerName");
+        UUID playerUUID = event.getPlayer().getUniqueId();
+        String playerName = event.getPlayer().getDisplayName();
+        String eventName = EventType.SERVER_DISCONNECT.getValue();
+
+        Player player = event.getPlayer();
+
+        if (player == null || !player.hasPermission("essentials.silentquit")) {
+            DisconnectAction action = new DisconnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
+            this.plugin.getMessageManager().executeOrAddCommand(action, null);
+        }
     }
 
 }

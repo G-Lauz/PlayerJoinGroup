@@ -12,7 +12,7 @@ class PacketTest {
     void testPacketBuilder() {
         Subchannel subchannel = Subchannel.BROADCAST;
         String data = "test data";
-        EventType event = EventType.JOIN_SERVER_GROUP;
+        EventType event = EventType.SERVER_CONNECT;
         String serverGroup = "test-server";
         String key = "testKey";
         String value = "testValue";

@@ -1,41 +1,83 @@
 package fr.freebuild.playerjoingroup.bungee.listener;
 
-import fr.freebuild.playerjoingroup.bungee.PlayerJoinGroup;
-import fr.freebuild.playerjoingroup.bungee.Utils;
+import fr.freebuild.playerjoingroup.bungee.*;
+import fr.freebuild.playerjoingroup.bungee.actions.ConnectAction;
+import fr.freebuild.playerjoingroup.bungee.actions.DisconnectAction;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 
+import fr.freebuild.playerjoingroup.core.protocol.Packet;
+import fr.freebuild.playerjoingroup.core.protocol.Subchannel;
 import net.md_5.bungee.api.config.ServerInfo;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
-import net.md_5.bungee.api.event.ServerConnectEvent;
 import net.md_5.bungee.api.event.ServerSwitchEvent;
+import net.md_5.bungee.api.plugin.Listener;
 import net.md_5.bungee.event.EventHandler;
 
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+public class PlayerSwitchListener implements Listener {
 
-public class PlayerSwitchListener extends ConnectionListener {
+    private final PlayerJoinGroup plugin;
 
     public PlayerSwitchListener(PlayerJoinGroup plugin) {
-        super(plugin);
+        this.plugin = plugin;
     }
 
     @EventHandler
-    public void on(ServerSwitchEvent event) {
-        ProxiedPlayer player = event.getPlayer();
-        ServerInfo fromServer = event.getFrom();
+    public void on(ServerSwitchEvent event) throws ServerGroupNotFoundException {
+        ServerInfo serverInfo = event.getFrom();
 
-        if (fromServer != null) {
-            String fromGroup = Utils.getServerGroupName(fromServer.getName(), this.plugin.getConfig());
-            String toGroup = Utils.getServerGroupName(player.getServer().getInfo().getName(), this.plugin.getConfig());
+        if (serverInfo != null) {
+            ProxiedPlayer player = event.getPlayer();
+
+            String fromServer = serverInfo.getName();
+            String toServer = player.getServer().getInfo().getName();
+
+            String fromGroup = Utils.getServerGroupName(fromServer, this.plugin.getConfig());
+            String toGroup = Utils.getServerGroupName(toServer, this.plugin.getConfig());
+
+            if (fromGroup == null) {
+                this.plugin.getLogger().warning(fromServer + " his part of any group of server.");
+                this.plugin.getLogger().warning("Make sure you have the right configuration.");
+                throw new ServerGroupNotFoundException(fromServer + " his part of any group of server.");
+            }
+
+            if (toGroup == null) {
+                this.plugin.getLogger().warning(toServer + " his part of any group of server.");
+                this.plugin.getLogger().warning("Make sure you have the right configuration.");
+                throw new ServerGroupNotFoundException(toServer + " his part of any group of server.");
+            }
 
             if (!fromGroup.equalsIgnoreCase(toGroup)) {
-                scheduledBroadcastEvent(fromServer, player, EventType.LEAVE_SERVER_GROUP, 1);
+                // Send disconnection message to old server
+                String disconnectionReason = EventType.SERVER_DISCONNECT.getValue();
+                Packet diconnectionPacket = new Packet.Builder(Subchannel.EVENT)
+                        .setEventType(EventType.SERVER_DISCONNECT)
+                        .setData(disconnectionReason)
+                        .setPlayerUuid(player.getUniqueId())
+                        .appendParam("SERVER_NAME", fromServer)
+                        .appendParam("PLAYER_NAME", player.getName())
+                        .setServerGroup(fromGroup)
+                        .build();
 
-                ScheduledExecutorService service = Executors.newSingleThreadScheduledExecutor();
-                service.schedule(() -> {
-                    this.plugin.getMessagesManager().sendQueryHasPlayedBefore(player.getServer().getInfo().getName(), player);
-                }, 1, TimeUnit.SECONDS);
+                this.plugin.getMessagesManager().sendToAll(diconnectionPacket);
+                this.plugin.getMessagesManager().addCommand(new DisconnectAction(
+                        this.plugin, fromServer, player.getName(), player.getUniqueId(), disconnectionReason, 1000
+                ));
+
+                // Send connection message to new server
+                String connectionReason = EventType.SERVER_CONNECT.getValue();
+                Packet connectionPacket = new Packet.Builder(Subchannel.EVENT)
+                        .setEventType(EventType.SERVER_CONNECT)
+                        .setData(connectionReason)
+                        .setPlayerUuid(player.getUniqueId())
+                        .appendParam("SERVER_NAME", toServer)
+                        .appendParam("PLAYER_NAME", player.getName())
+                        .setServerGroup(toGroup)
+                        .build();
+
+                this.plugin.getMessagesManager().sendToAll(connectionPacket);
+                this.plugin.getMessagesManager().addCommand(new ConnectAction(
+                        this.plugin, toServer, player.getName(), player.getUniqueId(), connectionReason, 1000
+                ));
             }
         }
     }

@@ -46,11 +46,6 @@ public class Packet {
             return this;
         }
 
-        public Builder setQuery(QueryType query) {
-            this.fieldManager.setField(ParamsKey.QUERY, query.getValue());
-            return this;
-        }
-
         public Builder setPlayerUuid(UUID uuid) {
             return this.appendParam(ParamsKey.PLAYER_UUID.getValue(), uuid.toString());
         }

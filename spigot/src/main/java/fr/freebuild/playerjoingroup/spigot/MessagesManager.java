@@ -1,9 +1,12 @@
 package fr.freebuild.playerjoingroup.spigot;
 
+import fr.freebuild.playerjoingroup.core.Action;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.*;
+import fr.freebuild.playerjoingroup.spigot.actions.ActionExecutionException;
+import fr.freebuild.playerjoingroup.spigot.actions.ConnectAction;
+import fr.freebuild.playerjoingroup.spigot.actions.DisconnectAction;
 import fr.freebuild.playerjoingroup.spigot.event.SocketConnectedEvent;
-import fr.freebuild.playerjoingroup.spigot.utils.FormatParam;
 import fr.freebuild.playerjoingroup.spigot.utils.Utils;
 
 import org.bukkit.Bukkit;
@@ -14,10 +17,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.bukkit.Bukkit.*;
@@ -35,6 +35,8 @@ public class MessagesManager {
     private Thread connectionThread;
     private Thread consumerThread;
     private AtomicBoolean isRunning;
+    private HashMap<Integer, Action> commandIndex;
+    private final Object lock = new Object();
 
     public MessagesManager(String ip, int port, PlayerJoinGroup plugin) {
         this.messages = new LinkedList<>();
@@ -46,6 +48,8 @@ public class MessagesManager {
         this.consumerThread = null;
 
         this.isRunning = new AtomicBoolean(false);
+
+        this.commandIndex = new HashMap<>();
     }
 
     public void initialize() {
@@ -168,71 +172,25 @@ public class MessagesManager {
 
         switch (subchannelType) {
             case EVENT -> this.handleEventSubchannel(packet);
-            case QUERY -> this.handleQuerySubchannel(packet);
             case HANDSHAKE -> {
-                break; // TODO proper handshake (with Query?)
+                break; // TODO proper handshake
             }
             default -> getLogger().warning("Received unhandle action: " + subchannel);
         }
     }
 
-    private void handleEventSubchannel(Packet packet) throws ConstructPacketErrorException, IOException, InvalidPacketException {
+    private void handleEventSubchannel(Packet packet) {
         String event = packet.getField(ParamsKey.EVENT);
         EventType eventType = EventType.typeof(event);
 
         switch (eventType) {
-            case JOIN_SERVER_GROUP -> onPlayerJoin(packet);
-            case LEAVE_SERVER_GROUP -> onPlayerLeave(packet);
+            case GROUP_DECONNECTION -> onPlayerLeave(packet);
             case FIRST_GROUP_CONNECTION -> onFirstConnection(packet);
-            case HAS_PLAYED_BEFORE -> onHasPlayedBefore(packet);
+            case GROUP_CONNECTION -> onHasPlayedBefore(packet);
+            case SERVER_CONNECT -> onServerConnect(packet);
+            case SERVER_DISCONNECT -> onServerDisconnect(packet);
             default -> getLogger().warning("Unknown event: " + event);
         }
-    }
-
-    private void handleQuerySubchannel(Packet packet) throws ConstructPacketErrorException, IOException, InvalidPacketException {
-        String query = packet.getField(ParamsKey.QUERY);
-        QueryType queryType = QueryType.typeof(query);
-
-        switch (queryType) {
-            case HAS_PLAYED_BEFORE -> onQueryHasPlayedBefore(packet.getField(ParamsKey.HASH_CODE), packet.getData());
-            default -> getLogger().warning("Unknown query: " + query);
-        }
-    }
-
-    public void send(byte[] msg) throws IOException {
-        if (this.server == null)
-            throw new RuntimeException("MessageManager not initialize. Cannot send message."); // TODO: better exception
-        this.server.write(msg);
-    }
-
-    private void onPlayerLeave(Packet packet) {
-        if (canDisplayMessage(packet, "essentials.silentquit"))  {
-            String message = Utils.getPlayerLeaveMessage(packet.getField("PLAYER_NAME"));
-            getServer().broadcastMessage(message);
-        }
-    }
-
-    private void onPlayerJoin(Packet packet) throws InvalidPacketException, ConstructPacketErrorException, IOException {
-        OfflinePlayer player = getOfflinePlayer(UUID.fromString(packet.getData()));
-        String hashCode = packet.getField(ParamsKey.HASH_CODE);
-
-        Packet answer = new Packet.Builder(Subchannel.QUERY)
-                .setData(Boolean.toString(player.hasPlayedBefore()))
-                .setHashCode(Integer.parseInt(hashCode))
-                .setQuery(QueryType.HAS_PLAYED_BEFORE_RESPONSE)
-                .build();
-        this.send(Protocol.constructPacket(answer));
-    }
-
-    private void onQueryHasPlayedBefore(String hashCode, String playerUUID) throws InvalidPacketException, ConstructPacketErrorException, IOException {
-        OfflinePlayer player = getOfflinePlayer(UUID.fromString(playerUUID));
-
-        Packet packet = new Packet.Builder(Subchannel.QUERY)
-                .setData(Boolean.toString(player.hasPlayedBefore()))
-                .setHashCode(Integer.parseInt(hashCode))
-                .setQuery(QueryType.HAS_PLAYED_BEFORE_RESPONSE)
-                .build();
-        this.send(Protocol.constructPacket(packet));
     }
 
     private void onFirstConnection(Packet packet) {
@@ -249,11 +207,102 @@ public class MessagesManager {
         }
     }
 
+    private void onPlayerLeave(Packet packet) {
+        if (canDisplayMessage(packet, "essentials.silentquit"))  {
+            String message = Utils.getPlayerLeaveMessage(packet.getField("PLAYER_NAME"));
+            getServer().broadcastMessage(message);
+        }
+    }
+
+    private void onServerConnect(Packet packet) {
+        String event = packet.getField(ParamsKey.EVENT);
+        String serverName = packet.getField("SERVER_NAME");
+        String playerName = packet.getField("PLAYER_NAME");
+        UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
+
+        OfflinePlayer offlinePlayer = this.plugin.getServer().getOfflinePlayer(playerUUID);
+        Player player = offlinePlayer.getPlayer();
+
+        if (player == null || !player.hasPermission("essentials.silentjoin")) {
+            boolean hasPlayedBefore = offlinePlayer.hasPlayedBefore();
+            ConnectAction command = new ConnectAction(this.plugin, serverName, playerName, playerUUID, event, 1000);
+            this.executeOrAddCommand(command, hasPlayedBefore);
+        }
+    }
+
+    private void onServerDisconnect(Packet packet) {
+        String event = packet.getField(ParamsKey.EVENT);
+        String serverName = packet.getField("SERVER_NAME");
+        String playerName = packet.getField("PLAYER_NAME");
+        UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
+
+        OfflinePlayer offlinePlayer = this.plugin.getServer().getOfflinePlayer(playerUUID);
+        Player player = offlinePlayer.getPlayer();
+
+        if (player == null || !player.hasPermission("essentials.silentquit")) {
+            DisconnectAction command = new DisconnectAction(this.plugin, serverName, playerName, playerUUID, event, 1000);
+            this.executeOrAddCommand(command, null);
+        }
+    }
+
     private Boolean canDisplayMessage(Packet packet, String perm) {
         UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
         Player player = getOfflinePlayer(playerUUID).getPlayer();
 
         return player == null || !player.hasPermission(perm);
+    }
+
+    public void addCommand(Action action) {
+        synchronized (this.lock) {
+            this.commandIndex.put(action.hashCode(), action);
+        }
+    }
+
+    private <T> void executeCommand(int hashCode, T context) throws ActionExecutionException {
+        synchronized (this.lock) {
+            Action action = this.commandIndex.get(hashCode);
+
+            if (action == null)
+                throw new ActionExecutionException("Command with hashcode " + hashCode + " not found.", false);
+
+            if (action.isExpired()) {
+                this.commandIndex.remove(hashCode);
+                throw new ActionExecutionException("Command with hashcode " + hashCode + " is expired.", true);
+            }
+
+            action.execute(context);
+            this.commandIndex.remove(hashCode);
+        }
+    }
+
+    public <T> void executeOrAddCommand(Action action, T context) {
+        this.removeExpiredCommand();
+
+        try {
+            this.executeCommand(action.hashCode(), context);
+        } catch (ActionExecutionException err) {
+            if (err.commandIsExpired())
+                this.plugin.getLogger().warning("Command " + action.hashCode() + " is expired.");
+            else
+                this.addCommand(action);
+        }
+    }
+
+    public void removeExpiredCommand() {
+        synchronized (this.lock) {
+            Iterator<Map.Entry<Integer, Action>> iterator = this.commandIndex.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<Integer, Action> entry = iterator.next();
+                if (entry.getValue().isExpired())
+                    iterator.remove();
+            }
+        }
+    }
+
+    public void send(byte[] msg) throws IOException {
+        if (this.server == null)
+            throw new RuntimeException("MessageManager not initialize. Cannot send message."); // TODO: better exception
+        this.server.write(msg);
     }
 
     private class ConnectionToServer {
