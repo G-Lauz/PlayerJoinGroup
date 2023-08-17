@@ -1,8 +1,8 @@
-package fr.freebuild.playerjoingroup.spigot;
+package fr.freebuild.playerjoingroup.spigot.actions;
 
-public class CommandExecutionException extends Exception {
+public class ActionExecutionException extends Exception {
     private final boolean commandIsExpired;
-    public CommandExecutionException(String message, boolean isExpired) {
+    public ActionExecutionException(String message, boolean isExpired) {
         super(message);
         this.commandIsExpired = isExpired;
     }

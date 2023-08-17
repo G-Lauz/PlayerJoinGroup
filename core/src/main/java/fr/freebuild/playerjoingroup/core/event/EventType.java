@@ -1,9 +1,9 @@
 package fr.freebuild.playerjoingroup.core.event;
 
 public enum EventType {
-    LEAVE_SERVER_GROUP("LeaveServerGroup"),
+    GROUP_DECONNECTION("GroupDeconnection"),
     FIRST_GROUP_CONNECTION("FirstGroupConnection"),
-    HAS_PLAYED_BEFORE("HasPlayedBefore"),
+    GROUP_CONNECTION("GroupConnection"),
     SERVER_CONNECT("ServerConnect"),
     SERVER_DISCONNECT("ServerDisconnect");
 

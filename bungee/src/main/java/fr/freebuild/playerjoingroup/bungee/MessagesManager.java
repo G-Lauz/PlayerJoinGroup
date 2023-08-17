@@ -1,6 +1,6 @@
 package fr.freebuild.playerjoingroup.bungee;
 
-import fr.freebuild.playerjoingroup.core.Command;
+import fr.freebuild.playerjoingroup.core.Action;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 import net.md_5.bungee.api.config.ServerInfo;
@@ -22,7 +22,7 @@ public class MessagesManager {
     private AtomicBoolean isRunning;
     private Thread acceptThread;
     private Thread consumerThread;
-    private HashMap<Integer, Command> commandIndex;
+    private HashMap<Integer, Action> commandIndex;
     private final Object lock = new Object();
 
     public MessagesManager(PlayerJoinGroup plugin, int port) throws IOException {
@@ -184,9 +184,9 @@ public class MessagesManager {
         sendToOne(packet.getData(), ack);
     }
 
-    public void addCommand(Command command) {
+    public void addCommand(Action action) {
         synchronized (this.lock) {
-            this.commandIndex.put(command.hashCode(), command);
+            this.commandIndex.put(action.hashCode(), action);
         }
     }
 
@@ -197,7 +197,7 @@ public class MessagesManager {
         String serverGroup = Utils.getServerGroupName(serverName, this.plugin.getConfig());
 
         boolean hasPlayedBefore = Boolean.parseBoolean(packet.getData());
-        EventType eventType = hasPlayedBefore ? EventType.HAS_PLAYED_BEFORE : EventType.FIRST_GROUP_CONNECTION;
+        EventType eventType = hasPlayedBefore ? EventType.GROUP_CONNECTION : EventType.FIRST_GROUP_CONNECTION;
 
         Packet eventPacket = new Packet.Builder(Subchannel.EVENT)
                 .setEventType(eventType)
@@ -215,7 +215,7 @@ public class MessagesManager {
         String serverGroup = Utils.getServerGroupName(serverName, this.plugin.getConfig());
 
         Packet disconnectionPacket = new Packet.Builder(Subchannel.EVENT)
-                .setEventType(EventType.LEAVE_SERVER_GROUP)
+                .setEventType(EventType.GROUP_DECONNECTION)
                 .setData(playerUUID)
                 .appendParam("PLAYER_NAME", playerName)
                 .setPlayerUuid(UUID.fromString(playerUUID))

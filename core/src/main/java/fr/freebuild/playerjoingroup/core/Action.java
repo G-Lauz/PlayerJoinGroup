@@ -1,10 +1,10 @@
 package fr.freebuild.playerjoingroup.core;
 
-public abstract class Command<T> {
+public abstract class Action<T> {
     private final long timeout;
     private final long creationTime;
 
-    public Command(long timeout) {
+    public Action(long timeout) {
         this.timeout = timeout;
         this.creationTime = System.currentTimeMillis();
     }

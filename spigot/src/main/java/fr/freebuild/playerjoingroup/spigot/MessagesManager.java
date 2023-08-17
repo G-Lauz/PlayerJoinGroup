@@ -1,8 +1,11 @@
 package fr.freebuild.playerjoingroup.spigot;
 
-import fr.freebuild.playerjoingroup.core.Command;
+import fr.freebuild.playerjoingroup.core.Action;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.*;
+import fr.freebuild.playerjoingroup.spigot.actions.ActionExecutionException;
+import fr.freebuild.playerjoingroup.spigot.actions.ConnectAction;
+import fr.freebuild.playerjoingroup.spigot.actions.DisconnectAction;
 import fr.freebuild.playerjoingroup.spigot.event.SocketConnectedEvent;
 import fr.freebuild.playerjoingroup.spigot.utils.Utils;
 
@@ -32,7 +35,7 @@ public class MessagesManager {
     private Thread connectionThread;
     private Thread consumerThread;
     private AtomicBoolean isRunning;
-    private HashMap<Integer, Command> commandIndex;
+    private HashMap<Integer, Action> commandIndex;
     private final Object lock = new Object();
 
     public MessagesManager(String ip, int port, PlayerJoinGroup plugin) {
@@ -181,9 +184,9 @@ public class MessagesManager {
         EventType eventType = EventType.typeof(event);
 
         switch (eventType) {
-            case LEAVE_SERVER_GROUP -> onPlayerLeave(packet);
+            case GROUP_DECONNECTION -> onPlayerLeave(packet);
             case FIRST_GROUP_CONNECTION -> onFirstConnection(packet);
-            case HAS_PLAYED_BEFORE -> onHasPlayedBefore(packet);
+            case GROUP_CONNECTION -> onHasPlayedBefore(packet);
             case SERVER_CONNECT -> onServerConnect(packet);
             case SERVER_DISCONNECT -> onServerDisconnect(packet);
             default -> getLogger().warning("Unknown event: " + event);
@@ -220,7 +223,7 @@ public class MessagesManager {
         OfflinePlayer player = this.plugin.getServer().getOfflinePlayer(playerUUID);
         boolean hasPlayedBefore = player.hasPlayedBefore();
 
-        ConnectCommand command = new ConnectCommand(this.plugin, serverName, playerName, playerUUID, event, 1000);
+        ConnectAction command = new ConnectAction(this.plugin, serverName, playerName, playerUUID, event, 1000);
         this.executeOrAddCommand(command, hasPlayedBefore);
     }
 
@@ -230,7 +233,7 @@ public class MessagesManager {
         String playerName = packet.getField("PLAYER_NAME");
         UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
 
-        DisconnectCommand command = new DisconnectCommand(this.plugin, serverName, playerName, playerUUID, event, 1000);
+        DisconnectAction command = new DisconnectAction(this.plugin, serverName, playerName, playerUUID, event, 1000);
         this.executeOrAddCommand(command, null);
     }
 
@@ -241,47 +244,47 @@ public class MessagesManager {
         return player == null || !player.hasPermission(perm);
     }
 
-    public void addCommand(Command command) {
+    public void addCommand(Action action) {
         synchronized (this.lock) {
-            this.commandIndex.put(command.hashCode(), command);
+            this.commandIndex.put(action.hashCode(), action);
         }
     }
 
-    private <T> void executeCommand(int hashCode, T context) throws CommandExecutionException {
+    private <T> void executeCommand(int hashCode, T context) throws ActionExecutionException {
         synchronized (this.lock) {
-            Command command = this.commandIndex.get(hashCode);
+            Action action = this.commandIndex.get(hashCode);
 
-            if (command == null)
-                throw new CommandExecutionException("Command with hashcode " + hashCode + " not found.", false);
+            if (action == null)
+                throw new ActionExecutionException("Command with hashcode " + hashCode + " not found.", false);
 
-            if (command.isExpired()) {
+            if (action.isExpired()) {
                 this.commandIndex.remove(hashCode);
-                throw new CommandExecutionException("Command with hashcode " + hashCode + " is expired.", true);
+                throw new ActionExecutionException("Command with hashcode " + hashCode + " is expired.", true);
             }
 
-            command.execute(context);
+            action.execute(context);
             this.commandIndex.remove(hashCode);
         }
     }
 
-    public <T> void executeOrAddCommand(Command command, T context) {
+    public <T> void executeOrAddCommand(Action action, T context) {
         this.removeExpiredCommand();
 
         try {
-            this.executeCommand(command.hashCode(), context);
-        } catch (CommandExecutionException err) {
+            this.executeCommand(action.hashCode(), context);
+        } catch (ActionExecutionException err) {
             if (err.commandIsExpired())
-                this.plugin.getLogger().warning("Command " + command.hashCode() + " is expired.");
+                this.plugin.getLogger().warning("Command " + action.hashCode() + " is expired.");
             else
-                this.addCommand(command);
+                this.addCommand(action);
         }
     }
 
     public void removeExpiredCommand() {
         synchronized (this.lock) {
-            Iterator<Map.Entry<Integer, Command>> iterator = this.commandIndex.entrySet().iterator();
+            Iterator<Map.Entry<Integer, Action>> iterator = this.commandIndex.entrySet().iterator();
             while (iterator.hasNext()) {
-                Map.Entry<Integer, Command> entry = iterator.next();
+                Map.Entry<Integer, Action> entry = iterator.next();
                 if (entry.getValue().isExpired())
                     iterator.remove();
             }

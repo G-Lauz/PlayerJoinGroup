@@ -1,6 +1,8 @@
 package fr.freebuild.playerjoingroup.bungee.listener;
 
 import fr.freebuild.playerjoingroup.bungee.*;
+import fr.freebuild.playerjoingroup.bungee.actions.ConnectAction;
+import fr.freebuild.playerjoingroup.bungee.actions.DisconnectAction;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 
 import fr.freebuild.playerjoingroup.core.protocol.Packet;
@@ -57,7 +59,7 @@ public class PlayerSwitchListener implements Listener {
                         .build();
 
                 this.plugin.getMessagesManager().sendToAll(diconnectionPacket);
-                this.plugin.getMessagesManager().addCommand(new DisconnectCommand(
+                this.plugin.getMessagesManager().addCommand(new DisconnectAction(
                         this.plugin, fromServer, player.getName(), player.getUniqueId(), disconnectionReason, 1000
                 ));
 
@@ -73,7 +75,7 @@ public class PlayerSwitchListener implements Listener {
                         .build();
 
                 this.plugin.getMessagesManager().sendToAll(connectionPacket);
-                this.plugin.getMessagesManager().addCommand(new ConnectCommand(
+                this.plugin.getMessagesManager().addCommand(new ConnectAction(
                         this.plugin, toServer, player.getName(), player.getUniqueId(), connectionReason, 1000
                 ));
             }

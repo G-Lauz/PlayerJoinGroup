@@ -1,6 +1,7 @@
-package fr.freebuild.playerjoingroup.bungee;
+package fr.freebuild.playerjoingroup.bungee.actions;
 
-import fr.freebuild.playerjoingroup.core.Command;
+import fr.freebuild.playerjoingroup.bungee.PlayerJoinGroup;
+import fr.freebuild.playerjoingroup.core.Action;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.Packet;
 import fr.freebuild.playerjoingroup.core.protocol.Subchannel;
@@ -8,14 +9,14 @@ import fr.freebuild.playerjoingroup.core.protocol.Subchannel;
 import java.util.Objects;
 import java.util.UUID;
 
-public class ConnectCommand extends Command<Boolean> {
+public class ConnectAction extends Action<Boolean> {
     private final PlayerJoinGroup plugin;
     private final String serverName;
     private final String playerName;
     private final UUID playerUUID;
     private final String event;
 
-    public ConnectCommand(PlayerJoinGroup plugin, String serverName, String playerName, UUID playerUUID, String event, long timeout) {
+    public ConnectAction(PlayerJoinGroup plugin, String serverName, String playerName, UUID playerUUID, String event, long timeout) {
         super(timeout);
         this.plugin = plugin;
         this.serverName = serverName;
@@ -26,7 +27,7 @@ public class ConnectCommand extends Command<Boolean> {
 
     @Override
     public void execute(Boolean hasPlayedBefore) {
-        EventType eventType = hasPlayedBefore ? EventType.HAS_PLAYED_BEFORE : EventType.FIRST_GROUP_CONNECTION;
+        EventType eventType = hasPlayedBefore ? EventType.GROUP_CONNECTION : EventType.FIRST_GROUP_CONNECTION;
 
         Packet eventPacket = new Packet.Builder(Subchannel.EVENT)
                 .setData(this.playerName)

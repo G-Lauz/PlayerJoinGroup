@@ -1,8 +1,8 @@
 package fr.freebuild.playerjoingroup.spigot.listener;
 
 import fr.freebuild.playerjoingroup.core.event.EventType;
-import fr.freebuild.playerjoingroup.spigot.ConnectCommand;
-import fr.freebuild.playerjoingroup.spigot.DisconnectCommand;
+import fr.freebuild.playerjoingroup.spigot.actions.ConnectAction;
+import fr.freebuild.playerjoingroup.spigot.actions.DisconnectAction;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -50,7 +50,7 @@ public class PlayerJoinListener implements Listener {
         String playerName = player.getDisplayName();
         String eventName = EventType.SERVER_CONNECT.getValue();
 
-        ConnectCommand command = new ConnectCommand(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
+        ConnectAction command = new ConnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
         this.plugin.getMessageManager().executeOrAddCommand(command, player.hasPlayedBefore());
     }
 
@@ -72,7 +72,7 @@ public class PlayerJoinListener implements Listener {
         String playerName = event.getPlayer().getDisplayName();
         String eventName = EventType.SERVER_DISCONNECT.getValue();
 
-        DisconnectCommand command = new DisconnectCommand(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
+        DisconnectAction command = new DisconnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
         this.plugin.getMessageManager().executeOrAddCommand(command, null);
     }
 

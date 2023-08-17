@@ -1,6 +1,6 @@
 package fr.freebuild.playerjoingroup.bungee.listener;
 
-import fr.freebuild.playerjoingroup.bungee.ConnectCommand;
+import fr.freebuild.playerjoingroup.bungee.actions.ConnectAction;
 import fr.freebuild.playerjoingroup.bungee.PlayerJoinGroup;
 import fr.freebuild.playerjoingroup.bungee.ServerGroupNotFoundException;
 import fr.freebuild.playerjoingroup.bungee.Utils;
@@ -48,7 +48,7 @@ public class PlayerJoinListener implements Listener {
                     .build();
 
             this.plugin.getMessagesManager().sendToAll(packet);
-            this.plugin.getMessagesManager().addCommand(new ConnectCommand(
+            this.plugin.getMessagesManager().addCommand(new ConnectAction(
                     this.plugin, serverName, player.getName(), playerUUID, reason, 1000
             ));
         }
