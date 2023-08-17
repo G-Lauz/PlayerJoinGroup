@@ -15,7 +15,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.util.*;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.bukkit.Bukkit.*;
@@ -170,20 +169,18 @@ public class MessagesManager {
 
         switch (subchannelType) {
             case EVENT -> this.handleEventSubchannel(packet);
-            case QUERY -> this.handleQuerySubchannel(packet);
             case HANDSHAKE -> {
-                break; // TODO proper handshake (with Query?)
+                break; // TODO proper handshake
             }
             default -> getLogger().warning("Received unhandle action: " + subchannel);
         }
     }
 
-    private void handleEventSubchannel(Packet packet) throws ConstructPacketErrorException, IOException, InvalidPacketException {
+    private void handleEventSubchannel(Packet packet) {
         String event = packet.getField(ParamsKey.EVENT);
         EventType eventType = EventType.typeof(event);
 
         switch (eventType) {
-            case JOIN_SERVER_GROUP -> onPlayerJoin(packet);
             case LEAVE_SERVER_GROUP -> onPlayerLeave(packet);
             case FIRST_GROUP_CONNECTION -> onFirstConnection(packet);
             case HAS_PLAYED_BEFORE -> onHasPlayedBefore(packet);
@@ -191,52 +188,6 @@ public class MessagesManager {
             case SERVER_DISCONNECT -> onServerDisconnect(packet);
             default -> getLogger().warning("Unknown event: " + event);
         }
-    }
-
-    private void handleQuerySubchannel(Packet packet) throws ConstructPacketErrorException, IOException, InvalidPacketException {
-        String query = packet.getField(ParamsKey.QUERY);
-        QueryType queryType = QueryType.typeof(query);
-
-        switch (queryType) {
-            case HAS_PLAYED_BEFORE -> onQueryHasPlayedBefore(packet.getField(ParamsKey.HASH_CODE), packet.getData());
-            default -> getLogger().warning("Unknown query: " + query);
-        }
-    }
-
-    public void send(byte[] msg) throws IOException {
-        if (this.server == null)
-            throw new RuntimeException("MessageManager not initialize. Cannot send message."); // TODO: better exception
-        this.server.write(msg);
-    }
-
-    private void onPlayerLeave(Packet packet) {
-        if (canDisplayMessage(packet, "essentials.silentquit"))  {
-            String message = Utils.getPlayerLeaveMessage(packet.getField("PLAYER_NAME"));
-            getServer().broadcastMessage(message);
-        }
-    }
-
-    private void onPlayerJoin(Packet packet) throws InvalidPacketException, ConstructPacketErrorException, IOException {
-        OfflinePlayer player = getOfflinePlayer(UUID.fromString(packet.getData()));
-        String hashCode = packet.getField(ParamsKey.HASH_CODE);
-
-        Packet answer = new Packet.Builder(Subchannel.QUERY)
-                .setData(Boolean.toString(player.hasPlayedBefore()))
-                .setHashCode(Integer.parseInt(hashCode))
-                .setQuery(QueryType.HAS_PLAYED_BEFORE_RESPONSE)
-                .build();
-        this.send(Protocol.constructPacket(answer));
-    }
-
-    private void onQueryHasPlayedBefore(String hashCode, String playerUUID) throws InvalidPacketException, ConstructPacketErrorException, IOException {
-        OfflinePlayer player = getOfflinePlayer(UUID.fromString(playerUUID));
-
-        Packet packet = new Packet.Builder(Subchannel.QUERY)
-                .setData(Boolean.toString(player.hasPlayedBefore()))
-                .setHashCode(Integer.parseInt(hashCode))
-                .setQuery(QueryType.HAS_PLAYED_BEFORE_RESPONSE)
-                .build();
-        this.send(Protocol.constructPacket(packet));
     }
 
     private void onFirstConnection(Packet packet) {
@@ -253,6 +204,36 @@ public class MessagesManager {
         }
     }
 
+    private void onPlayerLeave(Packet packet) {
+        if (canDisplayMessage(packet, "essentials.silentquit"))  {
+            String message = Utils.getPlayerLeaveMessage(packet.getField("PLAYER_NAME"));
+            getServer().broadcastMessage(message);
+        }
+    }
+
+    private void onServerConnect(Packet packet) {
+        String event = packet.getField(ParamsKey.EVENT);
+        String serverName = packet.getField("SERVER_NAME");
+        String playerName = packet.getField("PLAYER_NAME");
+        UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
+
+        OfflinePlayer player = this.plugin.getServer().getOfflinePlayer(playerUUID);
+        boolean hasPlayedBefore = player.hasPlayedBefore();
+
+        ConnectCommand command = new ConnectCommand(this.plugin, serverName, playerName, playerUUID, event, 1000);
+        this.executeOrAddCommand(command, hasPlayedBefore);
+    }
+
+    private void onServerDisconnect(Packet packet) {
+        String event = packet.getField(ParamsKey.EVENT);
+        String serverName = packet.getField("SERVER_NAME");
+        String playerName = packet.getField("PLAYER_NAME");
+        UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
+
+        DisconnectCommand command = new DisconnectCommand(this.plugin, serverName, playerName, playerUUID, event, 1000);
+        this.executeOrAddCommand(command, null);
+    }
+
     private Boolean canDisplayMessage(Packet packet, String perm) {
         UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
         Player player = getOfflinePlayer(playerUUID).getPlayer();
@@ -263,12 +244,6 @@ public class MessagesManager {
     public void addCommand(Command command) {
         synchronized (this.lock) {
             this.commandIndex.put(command.hashCode(), command);
-        }
-    }
-
-    private void removeCommand(Command command) {
-        synchronized (this.lock) {
-            this.commandIndex.remove(command.hashCode());
         }
     }
 
@@ -313,27 +288,10 @@ public class MessagesManager {
         }
     }
 
-    private void onServerConnect(Packet packet) {
-        String event = packet.getField(ParamsKey.EVENT);
-        String serverName = packet.getField("SERVER_NAME");
-        String playerName = packet.getField("PLAYER_NAME");
-        UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
-
-        OfflinePlayer player = this.plugin.getServer().getOfflinePlayer(playerUUID);
-        boolean hasPlayedBefore = player.hasPlayedBefore();
-
-        ConnectCommand command = new ConnectCommand(this.plugin, serverName, playerName, playerUUID, event, 1000);
-        this.executeOrAddCommand(command, hasPlayedBefore);
-    }
-
-    private void onServerDisconnect(Packet packet) {
-        String event = packet.getField(ParamsKey.EVENT);
-        String serverName = packet.getField("SERVER_NAME");
-        String playerName = packet.getField("PLAYER_NAME");
-        UUID playerUUID = UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID));
-
-        DisconnectCommand command = new DisconnectCommand(this.plugin, serverName, playerName, playerUUID, event, 1000);
-        this.executeOrAddCommand(command, null);
+    public void send(byte[] msg) throws IOException {
+        if (this.server == null)
+            throw new RuntimeException("MessageManager not initialize. Cannot send message."); // TODO: better exception
+        this.server.write(msg);
     }
 
     private class ConnectionToServer {

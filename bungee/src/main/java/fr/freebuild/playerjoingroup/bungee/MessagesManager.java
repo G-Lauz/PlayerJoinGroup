@@ -1,11 +1,9 @@
 package fr.freebuild.playerjoingroup.bungee;
 
-import fr.freebuild.playerjoingroup.bungee.query.QuerySpigotServer;
 import fr.freebuild.playerjoingroup.core.Command;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 import net.md_5.bungee.api.config.ServerInfo;
-import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -24,9 +22,6 @@ public class MessagesManager {
     private AtomicBoolean isRunning;
     private Thread acceptThread;
     private Thread consumerThread;
-
-    private HashMap<Integer, QuerySpigotServer<Boolean>> subscribers;
-
     private HashMap<Integer, Command> commandIndex;
     private final Object lock = new Object();
 
@@ -36,7 +31,6 @@ public class MessagesManager {
         this.messages = new LinkedList<>();
         this.clients = new Hashtable<>();
         this.serverSocket = new ServerSocket(port);
-        this.subscribers = new HashMap<>();
 
         this.acceptThread = null;
         this.consumerThread = null;
@@ -166,7 +160,6 @@ public class MessagesManager {
         switch (subchannelType) {
             case BROADCAST -> this.sendToAll(packet);
             case EVENT -> this.handleEventSubchannel(packet);
-            case QUERY -> this.handleQuerySubchannel(packet);
             case HANDSHAKE -> this.handleHandshakeSubchannel(packet, client);
             default -> throw new UnknownSubchannelException(subchannel, "Will ignore this message");
         }
@@ -175,42 +168,61 @@ public class MessagesManager {
     private void handleEventSubchannel(Packet packet) {
         String eventType = packet.getField(ParamsKey.EVENT);
         switch (EventType.typeof(eventType)) {
-            case FIRST_SPIGOT_CONNECTION -> onFirstConnection(packet.getData()); // TODO we don't receive it anymore
+            case SERVER_CONNECT -> onServerConnect(packet);
             case SERVER_DISCONNECT -> onServerDisconnect(packet);
             default -> MessagesManager.this.plugin.getLogger().warning("Unknown event: " + eventType);
         }
     }
 
-    private void handleQuerySubchannel(Packet packet) {
-        this.plugin.getLogger().info("Received query: ");
-        this.plugin.getLogger().info(packet.toString());
-
-        String queryType = packet.getField(ParamsKey.QUERY);
-        switch (QueryType.typeof(queryType)) {
-            case HAS_PLAYED_BEFORE_RESPONSE -> {
-                boolean hasPlayedBefore = Boolean.parseBoolean(packet.getData());
-                EventType eventType = hasPlayedBefore ? EventType.HAS_PLAYED_BEFORE : EventType.FIRST_GROUP_CONNECTION;
-
-                Packet eventPacket = new Packet.Builder(Subchannel.EVENT)
-                        .setEventType(eventType)
-                        .setData(packet.getField("PLAYER_NAME"))
-                        .setPlayerUuid(UUID.fromString(packet.getField(ParamsKey.PLAYER_UUID)))
-                        .setServerGroup(Utils.getServerGroupName(packet.getField("SERVER_NAME"), this.plugin.getConfig()))
-                        .build();
-                sendToAll(eventPacket);
-            }
-            default -> MessagesManager.this.plugin.getLogger().warning("Unknown query: "+ queryType);
-        }
-    }
-
     private void handleHandshakeSubchannel(Packet packet, ConnectionToClient client) {
-        // TODO proper handshake (with Query?)
+        // TODO proper handshake
         clients.put(packet.getData(), client);
 
         Packet ack = new Packet.Builder("HANDSHAKE")
                 .setData("ACK")
                 .build();
         sendToOne(packet.getData(), ack);
+    }
+
+    public void addCommand(Command command) {
+        synchronized (this.lock) {
+            this.commandIndex.put(command.hashCode(), command);
+        }
+    }
+
+    private void onServerConnect(Packet packet) {
+        String playerUUID = packet.getField(ParamsKey.PLAYER_UUID);
+        String playerName = packet.getField("PLAYER_NAME");
+        String serverName = packet.getField("SERVER_NAME");
+        String serverGroup = Utils.getServerGroupName(serverName, this.plugin.getConfig());
+
+        boolean hasPlayedBefore = Boolean.parseBoolean(packet.getData());
+        EventType eventType = hasPlayedBefore ? EventType.HAS_PLAYED_BEFORE : EventType.FIRST_GROUP_CONNECTION;
+
+        Packet eventPacket = new Packet.Builder(Subchannel.EVENT)
+                .setEventType(eventType)
+                .setData(playerName)
+                .setPlayerUuid(UUID.fromString(playerUUID))
+                .setServerGroup(serverGroup)
+                .build();
+        sendToAll(eventPacket);
+    }
+
+    private void onServerDisconnect(Packet packet) {
+        String playerUUID = packet.getField(ParamsKey.PLAYER_UUID);
+        String playerName = packet.getField("PLAYER_NAME");
+        String serverName = packet.getField("SERVER_NAME");
+        String serverGroup = Utils.getServerGroupName(serverName, this.plugin.getConfig());
+
+        Packet disconnectionPacket = new Packet.Builder(Subchannel.EVENT)
+                .setEventType(EventType.LEAVE_SERVER_GROUP)
+                .setData(playerUUID)
+                .appendParam("PLAYER_NAME", playerName)
+                .setPlayerUuid(UUID.fromString(playerUUID))
+                .setServerGroup(serverGroup)
+                .build();
+
+        this.plugin.getMessagesManager().sendToAll(disconnectionPacket);
     }
 
     public void sendToOne(String server, Packet packet) {
@@ -255,52 +267,6 @@ public class MessagesManager {
                 });
             }
         });
-    }
-
-    private void onFirstConnection(String playerUUID) {
-        this.plugin.getLogger().warning("OnFirstConnection not implemented yet.");
-    }
-
-    private void subscribe(int hash, QuerySpigotServer<Boolean> subscriber) {
-        this.subscribers.put(hash, subscriber);
-    }
-
-    private void unsubscribe(int hash) {
-        this.subscribers.remove(hash);
-    }
-
-    private void notifySubscriber(int hash, boolean hasPlayedBefore) {
-        this.subscribers.get(hash).update(hasPlayedBefore);
-    }
-
-    public void addCommand(Command command) {
-        synchronized (this.lock) {
-            this.commandIndex.put(command.hashCode(), command);
-        }
-    }
-
-    public void removeCommand(int hash) {
-        synchronized (this.lock) {
-            this.commandIndex.remove(hash);
-        }
-    }
-
-    private void onServerDisconnect(Packet packet) {
-        String playerUUID = packet.getField(ParamsKey.PLAYER_UUID);
-        String playerName = packet.getField("PLAYER_NAME");
-        String serverName = packet.getField("SERVER_NAME");
-
-        String serverGroup = Utils.getServerGroupName(serverName, this.plugin.getConfig());
-
-        Packet disconnectionPacket = new Packet.Builder(Subchannel.EVENT)
-                .setEventType(EventType.LEAVE_SERVER_GROUP)
-                .setData(playerUUID)
-                .appendParam("PLAYER_NAME", playerName)
-                .setPlayerUuid(UUID.fromString(playerUUID))
-                .setServerGroup(serverGroup)
-                .build();
-
-        this.plugin.getMessagesManager().sendToAll(disconnectionPacket);
     }
 
     private class ConnectionToClient {

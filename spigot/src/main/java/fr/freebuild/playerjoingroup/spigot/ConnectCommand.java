@@ -1,6 +1,7 @@
 package fr.freebuild.playerjoingroup.spigot;
 
 import fr.freebuild.playerjoingroup.core.Command;
+import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 
 import java.io.IOException;
@@ -25,8 +26,8 @@ public class ConnectCommand extends Command<Boolean> {
 
     @Override
     public void execute(Boolean hasPlayedBefore) {
-        Packet packet = new Packet.Builder(Subchannel.QUERY)
-                .setQuery(QueryType.HAS_PLAYED_BEFORE_RESPONSE) // todo: rename to HAS_PLAYED_BEFORE_RESPONSE
+        Packet packet = new Packet.Builder(Subchannel.EVENT)
+                .setEventType(EventType.SERVER_CONNECT)
                 .setData(hasPlayedBefore.toString())
                 .setPlayerUuid(this.playerUUID)
                 .appendParam("SERVER_NAME", this.serverName)

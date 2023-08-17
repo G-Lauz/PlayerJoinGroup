@@ -12,7 +12,6 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import fr.freebuild.playerjoingroup.spigot.PlayerJoinGroup;
 import fr.freebuild.playerjoingroup.spigot.utils.Utils;
 
-import java.util.Objects;
 import java.util.UUID;
 
 public class PlayerJoinListener implements Listener {
