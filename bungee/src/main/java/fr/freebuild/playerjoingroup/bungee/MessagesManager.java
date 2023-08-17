@@ -100,48 +100,7 @@ public class MessagesManager {
         }
     }
 
-    private void gatherThreadInfo(ThreadGroup group, Map<Thread, Thread.State> threadInfo) {
-        Thread[] threads = new Thread[group.activeCount()];
-        int numThreads = group.enumerate(threads);
-        for (int i = 0; i < numThreads; i++) {
-            threadInfo.put(threads[i], threads[i].getState());
-        }
-
-        ThreadGroup[] subGroups = new ThreadGroup[group.activeGroupCount()];
-        int numGroups = group.enumerate(subGroups);
-        for (int i = 0; i < numGroups; i++) {
-            this.gatherThreadInfo(subGroups[i], threadInfo);
-        }
-    }
-
-    private void printThreadInfo(Map<Thread, Thread.State> threadInfo) {
-        this.plugin.getLogger().info("Number of threads: " + threadInfo.size());
-        this.plugin.getLogger().info("--------------------------------------------------------------------------");
-        for (Map.Entry<Thread, Thread.State> entry : threadInfo.entrySet()) {
-//            this.plugin.getLogger().info(entry.getKey().getName() + " (" + entry.getKey().getId() + "): " + entry.getValue());
-            if (entry.getKey().getName().startsWith("Netty")) {
-                this.plugin.getLogger().info(entry.getKey().getName() + " (" + entry.getKey().getId() + "): " + entry.getValue());
-                // print stack trace of the thread in a readable format
-                StackTraceElement[] stackTrace = entry.getKey().getStackTrace();
-                for (StackTraceElement stackTraceElement : stackTrace) {
-                    this.plugin.getLogger().info("\t" + stackTraceElement.toString());
-                }
-            }
-        }
-        this.plugin.getLogger().info("--------------------------------------------------------------------------");
-    }
-
     private void processMessage(Message message) {
-        ThreadGroup rootGroup = Thread.currentThread().getThreadGroup();
-        ThreadGroup parentGroup;
-        while ((parentGroup = rootGroup.getParent()) != null) {
-            rootGroup = parentGroup;
-        }
-
-        Map<Thread, Thread.State> threadInfo = new HashMap<>();
-        this.gatherThreadInfo(rootGroup, threadInfo);
-        this.printThreadInfo(threadInfo);
-
         try {
             Packet packet = Protocol.deconstructPacket(message.getMessage());
             ConnectionToClient client = message.getClient();
