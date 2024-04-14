@@ -11,7 +11,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.net.Socket;
 
 public class PlayerJoinGroup extends JavaPlugin {
 
@@ -67,26 +67,40 @@ public class PlayerJoinGroup extends JavaPlugin {
     }
 
     public void enableMessageManager() {
+        try {
+            FileConfiguration config = this.getConfig();
 
-        FileConfiguration config = this.getConfig();
-        this.messagesManager = new MessagesManager(config.getString("ProxyIP"), config.getInt("ProxyPort"), this);
+            String serverName = config.getString("ServerName");
 
-        getServer().getPluginManager().registerEvents(new SocketConnectedListener(this),this);
+            String proxyIP = config.getString("ProxyIP");
+            int proxyPort = config.getInt("ProxyPort");
 
-        this.messagesManager.initialize();
+            Socket socket = new Socket(proxyIP, proxyPort);
+
+            int maxAttempts = config.getInt("ReconnectAttempts");
+            int delay = config.getInt("ReconnectDelay");
+            RetryPolicy retryPolicy = new ConstantRetryPolicy(maxAttempts, delay);
+
+            getServer().getPluginManager().registerEvents(new SocketConnectedListener(this),this);
+
+            ActionExecutor actionExecutor = new ActionExecutor(this);
+            PlayerMessageConsumer playerMessageConsumer = new PlayerMessageConsumer(this, actionExecutor);
+            ConnectionToServer server = new ConnectionToServer(serverName, socket, playerMessageConsumer, retryPolicy);
+
+            this.messagesManager = new MessagesManager(server, actionExecutor);
+        } catch (IOException exception) {
+            getLogger().warning("Unable to connect to the proxy server. The group feature will not work. And each new connection will be handle locally.");
+            throw new RuntimeException(exception);
+        }
     }
 
     public void disableMessageManager() {
         if (this.messagesManager != null) {
-            try {
-                this.messagesManager.close();
-            } catch (IOException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            this.messagesManager.close();
         }
     }
 
     public boolean isMessageManagerEnabled() {
-        return this.messagesManager != null && this.messagesManager.isRunning();
+        return this.messagesManager != null && this.messagesManager.isEnable();
     }
 }

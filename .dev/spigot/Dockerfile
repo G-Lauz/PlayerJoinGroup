@@ -3,6 +3,7 @@ FROM eclipse-temurin:17.0.1_12-jre-focal
 ARG MINECRAFT_VERSION=latest
 ARG SERVER_MEMORY=1
 ARG SERVER_PORT=25565
+ARG DEBUGGER_PORT=5005
 
 WORKDIR /app/build
 
@@ -19,7 +20,12 @@ COPY .dev/spigot/*.yml .
 COPY .dev/spigot/server.properties .
 RUN mkdir ./plugins && \
     echo "eula=true" > ./eula.txt && \
-    echo "java -Xms${SERVER_MEMORY}G -Xmx${SERVER_MEMORY}G -XX:+UseG1GC -DIReallyKnowWhatIAmDoingISwear -jar spigot-${MINECRAFT_VERSION}.jar nogui" > ./start.sh && \
+    echo "java -Xms${SERVER_MEMORY}G \
+               -Xmx${SERVER_MEMORY}G \
+               -XX:+UseG1GC \
+               -DIReallyKnowWhatIAmDoingISwear \
+               -agentlib:jdwp=transport=dt_socket,address=*:${DEBUGGER_PORT},server=y,suspend=n  \
+               -jar spigot-${MINECRAFT_VERSION}.jar nogui" > ./start.sh && \
     chmod +x ./start.sh
 
 CMD [ "bash", "-c", "./start.sh" ]
