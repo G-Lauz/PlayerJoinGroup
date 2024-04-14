@@ -277,6 +277,7 @@ public class MessagesManager {
         public void write(byte[] msg) throws IOException {
             dataOutputStream.writeInt(msg.length);
             dataOutputStream.write(msg);
+            dataOutputStream.flush();
         }
 
         public void close() throws IOException, InterruptedException {
