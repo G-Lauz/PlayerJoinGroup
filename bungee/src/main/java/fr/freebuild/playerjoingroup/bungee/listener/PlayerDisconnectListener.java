@@ -1,6 +1,5 @@
 package fr.freebuild.playerjoingroup.bungee.listener;
 
-import fr.freebuild.playerjoingroup.bungee.actions.DisconnectAction;
 import fr.freebuild.playerjoingroup.bungee.PlayerJoinGroup;
 import fr.freebuild.playerjoingroup.bungee.ServerGroupNotFoundException;
 import fr.freebuild.playerjoingroup.bungee.Utils;
@@ -44,8 +43,5 @@ public class PlayerDisconnectListener implements Listener {
                 .build();
 
         this.plugin.getMessagesManager().sendToAll(packet);
-        this.plugin.getMessagesManager().addCommand(new DisconnectAction(
-                this.plugin, serverName, player.getName(), player.getUniqueId(), reason, 1000
-        ));
     }
 }

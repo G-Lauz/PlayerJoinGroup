@@ -1,6 +1,5 @@
 package fr.freebuild.playerjoingroup.bungee;
 
-import fr.freebuild.playerjoingroup.core.Action;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 import net.md_5.bungee.api.config.ServerInfo;
@@ -22,8 +21,6 @@ public class MessagesManager {
     private AtomicBoolean isRunning;
     private Thread acceptThread;
     private Thread consumerThread;
-    private HashMap<Integer, Action> commandIndex;
-    private final Object lock = new Object();
 
     public MessagesManager(PlayerJoinGroup plugin, int port) throws IOException {
         this.plugin = plugin;
@@ -36,8 +33,6 @@ public class MessagesManager {
         this.consumerThread = null;
 
         this.isRunning = new AtomicBoolean(false);
-
-        this.commandIndex = new HashMap<>();
     }
 
     public void initialize() {
@@ -141,12 +136,6 @@ public class MessagesManager {
                 .setData("ACK")
                 .build();
         sendToOne(packet.getData(), ack);
-    }
-
-    public void addCommand(Action action) {
-        synchronized (this.lock) {
-            this.commandIndex.put(action.hashCode(), action);
-        }
     }
 
     private void onServerConnect(Packet packet) {
