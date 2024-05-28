@@ -1,6 +1,6 @@
 package fr.freebuild.playerjoingroup.spigot.actions;
 
-import fr.freebuild.playerjoingroup.core.Action;
+import fr.freebuild.playerjoingroup.core.action.Action;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 import fr.freebuild.playerjoingroup.spigot.PlayerJoinGroup;

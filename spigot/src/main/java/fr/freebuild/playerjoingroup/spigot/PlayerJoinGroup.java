@@ -1,5 +1,6 @@
 package fr.freebuild.playerjoingroup.spigot;
 
+import fr.freebuild.playerjoingroup.core.action.ActionExecutor;
 import fr.freebuild.playerjoingroup.spigot.commands.CommandHandler;
 import fr.freebuild.playerjoingroup.spigot.commands.ReloadCommand;
 import fr.freebuild.playerjoingroup.spigot.commands.StatusCommand;
@@ -81,9 +82,9 @@ public class PlayerJoinGroup extends JavaPlugin {
             int delay = config.getInt("ReconnectDelay");
             RetryPolicy retryPolicy = new ConstantRetryPolicy(maxAttempts, delay);
 
-            getServer().getPluginManager().registerEvents(new SocketConnectedListener(this),this);
+//            getServer().getPluginManager().registerEvents(new SocketConnectedListener(this),this);
 
-            ActionExecutor actionExecutor = new ActionExecutor(this);
+            ActionExecutor actionExecutor = new ActionExecutor(this.plugin.getLogger());
             PlayerMessageConsumer playerMessageConsumer = new PlayerMessageConsumer(this, actionExecutor);
             ConnectionToServer server = new ConnectionToServer(serverName, socket, playerMessageConsumer, retryPolicy);
 

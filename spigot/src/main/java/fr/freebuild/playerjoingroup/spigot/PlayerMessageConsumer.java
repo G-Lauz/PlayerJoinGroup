@@ -1,5 +1,8 @@
 package fr.freebuild.playerjoingroup.spigot;
 
+import fr.freebuild.playerjoingroup.core.Connection;
+import fr.freebuild.playerjoingroup.core.action.ActionExecutor;
+import fr.freebuild.playerjoingroup.core.MessageConsumer;
 import fr.freebuild.playerjoingroup.core.event.EventType;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 import fr.freebuild.playerjoingroup.spigot.actions.ConnectAction;
@@ -23,7 +26,7 @@ public class PlayerMessageConsumer implements MessageConsumer {
     }
 
     @Override
-    public void processMessage(byte[] message) {
+    public void processMessage(Connection connection, byte[] message) {
         try {
             Packet packet = Protocol.deconstructPacket(message);
             String subchannel = packet.getSubchannel(); // TODO refactor remove subchannel?
@@ -41,9 +44,7 @@ public class PlayerMessageConsumer implements MessageConsumer {
 
         switch (subchannelType) {
             case EVENT -> this.handleEventSubchannel(packet);
-            case HANDSHAKE -> {
-                break; // TODO proper handshake
-            }
+            case HANDSHAKE_ACK -> this.onHandshakeAck(packet);
             default -> getLogger().warning("Received unhandle action: " + subchannel);
         }
     }
@@ -60,6 +61,10 @@ public class PlayerMessageConsumer implements MessageConsumer {
             case SERVER_DISCONNECT -> onServerDisconnect(packet);
             default -> getLogger().warning("Unknown event: " + event);
         }
+    }
+
+    private void onHandshakeAck(Packet packet) {
+        getLogger().info("Connected to the proxy as " + packet.getData());
     }
 
     private void onFirstConnection(Packet packet) {

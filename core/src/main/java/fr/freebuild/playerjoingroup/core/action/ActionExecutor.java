@@ -1,38 +1,35 @@
-package fr.freebuild.playerjoingroup.spigot;
-
-import fr.freebuild.playerjoingroup.core.Action;
-import fr.freebuild.playerjoingroup.spigot.actions.ActionExecutionException;
+package fr.freebuild.playerjoingroup.core.action;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.logging.Logger;
 
 public class ActionExecutor {
-    private final PlayerJoinGroup plugin;
     private final Object lock;
+    private final Logger logger;
     private final Map<Integer, Action> commandIndex;
 
-    public ActionExecutor(PlayerJoinGroup plugin) {
-        this.plugin = plugin;
+    public ActionExecutor(Logger logger) {
+        this.logger = logger;
         this.lock = new Object();
         this.commandIndex = new HashMap<>();
     }
 
     private <T> void execute(int hashCode, T context) throws ActionExecutionException {
+        Action action = null;
         synchronized (this.lock) {
-            Action action = this.commandIndex.get(hashCode);
+            action = this.commandIndex.remove(hashCode);
 
             if (action == null)
                 throw new ActionExecutionException("Command with hashcode " + hashCode + " not found.", false);
 
-            if (action.isExpired()) {
-                this.commandIndex.remove(hashCode);
+            if (action.isExpired())
                 throw new ActionExecutionException("Command with hashcode " + hashCode + " is expired.", true);
-            }
-
-            action.execute(context);
-            this.commandIndex.remove(hashCode);
         }
+
+        if (action != null)
+            action.execute(context);
     }
 
     public <T> void resolve(Action action, T context) {
@@ -42,7 +39,7 @@ public class ActionExecutor {
             this.execute(action.hashCode(), context);
         } catch (ActionExecutionException err) {
             if (err.commandIsExpired())
-                this.plugin.getLogger().warning("Command " + action.hashCode() + " is expired.");
+                this.logger.warning("Command " + action.hashCode() + " is expired.");
             else
                 this.add(action);
         }

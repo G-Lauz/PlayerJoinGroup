@@ -3,6 +3,7 @@ package fr.freebuild.playerjoingroup.core.protocol;
 public enum Subchannel {
     EVENT("EVENT"),
     HANDSHAKE("HANDSHAKE"),
+    HANDSHAKE_ACK("HANDSHAKE_ACK"),
     BROADCAST("BROADCAST");
 
     private String value;

@@ -1,5 +1,7 @@
 package fr.freebuild.playerjoingroup.spigot;
 
+import fr.freebuild.playerjoingroup.core.Connection;
+import fr.freebuild.playerjoingroup.core.MessageConsumer;
 import fr.freebuild.playerjoingroup.spigot.event.SocketConnectedEvent;
 import org.bukkit.Bukkit;
 
@@ -15,7 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.bukkit.Bukkit.getLogger;
 
-public class ConnectionToServer {
+public class ConnectionToServer implements Connection {
     private RetryPolicy retryPolicy;
     private Thread producer;
     private Thread consumer;
@@ -26,6 +28,8 @@ public class ConnectionToServer {
     private DataOutputStream dataOutputStream;
     private Queue<byte[]> messages;
     private MessageConsumer messageConsumer;
+
+    private String name;
 
     public ConnectionToServer(String serverName, Socket socket, MessageConsumer messageConsumer, RetryPolicy retryPolicy) {
         this.serverName = serverName;
@@ -69,7 +73,6 @@ public class ConnectionToServer {
                         dataOutputStream = new DataOutputStream(socket.getOutputStream());
                         isConnected.set(true);
 
-                        getLogger().info("Connected to the proxy as " + serverName);
                         Bukkit.getPluginManager().callEvent(new SocketConnectedEvent(serverName));
 
                         break;
@@ -136,10 +139,10 @@ public class ConnectionToServer {
 
     private void consumeMessage() {
         while(!Thread.currentThread().isInterrupted() && this.isConnected.get()) {
+            byte[] msg = null;
             synchronized (messages) {
                 try {
-                    byte[] msg = messages.remove();
-                    this.messageConsumer.processMessage(msg);
+                    msg = messages.remove();
                 } catch (NoSuchElementException emptyQueue) { // Queue is empty
                     try {
                         messages.wait();
@@ -149,19 +152,27 @@ public class ConnectionToServer {
                     }
                 }
             }
+
+            if (msg != null) {
+                this.messageConsumer.processMessage(this, msg);
+            }
         }
     }
 
+    @Override
     public void sendMessage(byte[] msg) throws IOException {
         if (this.isConnected.get()) {
-            this.dataOutputStream.writeInt(msg.length);
-            this.dataOutputStream.write(msg);
-            this.dataOutputStream.flush();
+            synchronized (this.dataOutputStream) {
+                this.dataOutputStream.writeInt(msg.length);
+                this.dataOutputStream.write(msg);
+                this.dataOutputStream.flush();
+            }
         } else {
             throw new IOException("Connection to the proxy server is not established.");
         }
     }
 
+    @Override
     public void close() throws IOException, InterruptedException {
         this.isConnected.set(false);
 
@@ -178,7 +189,18 @@ public class ConnectionToServer {
         }
     }
 
+    @Override
     public boolean isConnected() {
         return this.isConnected.get();
+    }
+
+    @Override
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public String getName() {
+        return this.name;
     }
 }

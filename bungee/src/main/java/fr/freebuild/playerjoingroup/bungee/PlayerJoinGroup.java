@@ -34,15 +34,32 @@ public class PlayerJoinGroup extends Plugin {
         getProxy().getPluginManager().registerListener(this, new PlayerSwitchListener(this));
         getProxy().getPluginManager().registerListener(this, new PlayerDisconnectListener(this));
 
+        enableMessageManager();
+    }
+
+    @Override
+    public void onDisable() {
+        super.onDisable();
+        this.disableMessageManager();
+    }
+
+    public void enableMessageManager() {
         try {
-            this.messagesManager = new MessagesManager(this, config.getPort());
-            this.messagesManager.initialize();
+            this.messagesManager = new MessagesManager(this, this.config.getPort(), getLogger());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    // TODO ondisbale close all thread
+    public void disableMessageManager() {
+        if (this.messagesManager != null) {
+            try {
+                this.messagesManager.close();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 
     public Config getConfig() {
         return config;
