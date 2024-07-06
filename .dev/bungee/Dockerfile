@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17.0.1_12-jre-focal
+FROM eclipse-temurin:22.0.1_8-jdk-jammy
 
 ARG PROXY_PORT=25577
 ARG DEBUGGER_PORT=5005
