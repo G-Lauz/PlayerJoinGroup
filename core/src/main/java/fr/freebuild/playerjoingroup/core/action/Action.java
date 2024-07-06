@@ -1,4 +1,4 @@
-package fr.freebuild.playerjoingroup.core;
+package fr.freebuild.playerjoingroup.core.action;
 
 public abstract class Action<T> {
     private final long timeout;

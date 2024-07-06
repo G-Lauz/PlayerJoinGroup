@@ -1,5 +1,7 @@
 package fr.freebuild.playerjoingroup.spigot;
 
+import fr.freebuild.playerjoingroup.core.action.ActionExecutor;
+
 import java.io.IOException;
 
 public class MessagesManager {

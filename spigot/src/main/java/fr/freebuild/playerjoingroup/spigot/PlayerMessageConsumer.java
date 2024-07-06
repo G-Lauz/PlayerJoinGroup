@@ -1,9 +1,14 @@
 package fr.freebuild.playerjoingroup.spigot;
 
+import fr.freebuild.playerjoingroup.core.Connection;
+import fr.freebuild.playerjoingroup.core.action.ActionExecutor;
+import fr.freebuild.playerjoingroup.core.MessageConsumer;
 import fr.freebuild.playerjoingroup.core.event.EventType;
+import fr.freebuild.playerjoingroup.core.log.DebugLogger;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 import fr.freebuild.playerjoingroup.spigot.actions.ConnectAction;
 import fr.freebuild.playerjoingroup.spigot.actions.DisconnectAction;
+import fr.freebuild.playerjoingroup.spigot.actions.HandshakeAction;
 import fr.freebuild.playerjoingroup.spigot.utils.Utils;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -17,13 +22,16 @@ public class PlayerMessageConsumer implements MessageConsumer {
     private final PlayerJoinGroup plugin;
     private final ActionExecutor actionExecutor;
 
-    public PlayerMessageConsumer(PlayerJoinGroup plugin, ActionExecutor actionExecutor) {
+    private final DebugLogger logger;
+
+    public PlayerMessageConsumer(PlayerJoinGroup plugin, ActionExecutor actionExecutor, DebugLogger logger) {
         this.plugin = plugin;
         this.actionExecutor = actionExecutor;
+        this.logger = logger;
     }
 
     @Override
-    public void processMessage(byte[] message) {
+    public void processMessage(Connection connection, byte[] message) {
         try {
             Packet packet = Protocol.deconstructPacket(message);
             String subchannel = packet.getSubchannel(); // TODO refactor remove subchannel?
@@ -31,7 +39,7 @@ public class PlayerMessageConsumer implements MessageConsumer {
             this.handleMessageBySubchannel(subchannel, packet);
         } catch (DeconstructPacketErrorException | InvalidPacketException |
                  ConstructPacketErrorException | IOException | UnknownSubchannelException err) {
-            getLogger().severe(Arrays.toString(err.getStackTrace()));
+            this.logger.severe(Arrays.toString(err.getStackTrace()));
         }
     }
 
@@ -41,10 +49,9 @@ public class PlayerMessageConsumer implements MessageConsumer {
 
         switch (subchannelType) {
             case EVENT -> this.handleEventSubchannel(packet);
-            case HANDSHAKE -> {
-                break; // TODO proper handshake
-            }
-            default -> getLogger().warning("Received unhandle action: " + subchannel);
+            case HANDSHAKE -> this.handleHandshake(packet);
+            case HANDSHAKE_ACK -> this.onHandshakeAck(packet);
+            default -> this.logger.warning("Received unhandle action: " + subchannel);
         }
     }
 
@@ -58,8 +65,33 @@ public class PlayerMessageConsumer implements MessageConsumer {
             case GROUP_CONNECTION -> onHasPlayedBefore(packet);
             case SERVER_CONNECT -> onServerConnect(packet);
             case SERVER_DISCONNECT -> onServerDisconnect(packet);
-            default -> getLogger().warning("Unknown event: " + event);
+            default -> this.logger.warning("Unknown event: " + event);
         }
+    }
+
+    private void handleHandshake(Packet packet) {
+        String serverName = this.plugin.getConfig().getString("ServerName");
+
+        Packet handshake = new Packet.Builder(Subchannel.HANDSHAKE)
+                .setData(serverName)
+                .build();
+
+        try {
+            this.plugin.getMessageManager().send(Protocol.constructPacket(handshake));
+
+            HandshakeAction action = new HandshakeAction(this.plugin.getMessageManager(), serverName, 1000);
+            this.plugin.getMessageManager().getActionExecutor().resolve(action, serverName);
+        } catch (IOException | ConstructPacketErrorException | InvalidPacketException e) {
+            this.logger.severe("An error occurred while sending packet to bungeecord");
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void onHandshakeAck(Packet packet) {
+        String serverName = packet.getData();
+
+        HandshakeAction action = new HandshakeAction(this.plugin.getMessageManager(), serverName, 1000);
+        this.plugin.getMessageManager().getActionExecutor().resolve(action, serverName);
     }
 
     private void onFirstConnection(Packet packet) {

@@ -10,6 +10,7 @@ FirstJoinMessage: "&8&l[&a+&8]&f {playername} &6Bienvenue sur le serveur, tu es 
 JoinMessage: "&8[&a+&8]&f {playername}"
 QuitMessage: "&8[&c-&8]&f {playername}"
 PlayerCounter: 25009
+debug: false
 Firework:
   ActivateOnJoin: true
   Type: BALL_LARGE
