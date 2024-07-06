@@ -2,6 +2,8 @@ package fr.freebuild.playerjoingroup.bungee;
 
 import fr.freebuild.playerjoingroup.core.Connection;
 import fr.freebuild.playerjoingroup.core.MessageConsumer;
+import fr.freebuild.playerjoingroup.core.action.ActionExecutor;
+import fr.freebuild.playerjoingroup.core.log.DebugLevel;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 import net.md_5.bungee.api.config.ServerInfo;
 
@@ -43,7 +45,7 @@ public class MessagesManager {
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 Socket socket = serverSocket.accept();
-                ConnectionToClient client = new ConnectionToClient(socket, this.messageConsumer, this.logger);
+                ConnectionToClient client = new ConnectionToClient(this.plugin, socket, this.messageConsumer, this.logger);
 
                 synchronized (this.clientsRegistry) {
                     this.clientsRegistry.put(socket.getInetAddress().getHostAddress(), client); // TODO proper handshake
@@ -56,12 +58,12 @@ public class MessagesManager {
         }
     }
 
-    public void updateClientName(Connection connection, String serverName) {
+    public void updateClientName(String oldName, String newName) {
         synchronized (this.clientsRegistry) {
-            this.logger.info("Updating client name from \"" + connection.getName() + "\" to \"" + serverName + "\".");
-
-            Connection client = clientsRegistry.remove(connection.getName());
-            clientsRegistry.put(serverName, client);
+            this.logger.log(DebugLevel.DEBUG, "Updating client name from \"" + oldName + "\" to \"" + newName + "\".");
+            Connection connection = this.clientsRegistry.remove(oldName);
+            connection.setName(newName);
+            this.clientsRegistry.put(newName, connection);
         }
     }
 

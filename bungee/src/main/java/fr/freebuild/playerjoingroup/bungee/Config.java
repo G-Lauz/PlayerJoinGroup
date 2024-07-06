@@ -16,11 +16,13 @@ public class Config {
 
     private int port;
     private Hashtable group;
+    private boolean isDebugMode;
 
     public Config(Plugin plugin) {
         this.plugin = plugin;
         this.port = 26005;
         this.group = null;
+        this.isDebugMode = false;
         this.loadConfig();
     }
 
@@ -40,6 +42,8 @@ public class Config {
             config = ConfigurationProvider.getProvider(YamlConfiguration.class).load(configFile);
 
             this.port = config.getInt("port");
+
+            this.isDebugMode = config.getBoolean("debug", false);
 
             List<?> serverGroup =  config.getList("group");
             group = new Hashtable();
@@ -76,5 +80,9 @@ public class Config {
 
     public Hashtable getGroup() {
         return group;
+    }
+
+    public boolean isDebugMode() {
+        return isDebugMode;
     }
 }

@@ -1,6 +1,8 @@
 package fr.freebuild.playerjoingroup.spigot;
 
 import fr.freebuild.playerjoingroup.core.action.ActionExecutor;
+import fr.freebuild.playerjoingroup.core.log.DebugFormatter;
+import fr.freebuild.playerjoingroup.core.log.DebugLevel;
 import fr.freebuild.playerjoingroup.spigot.commands.CommandHandler;
 import fr.freebuild.playerjoingroup.spigot.commands.ReloadCommand;
 import fr.freebuild.playerjoingroup.spigot.commands.StatusCommand;
@@ -13,15 +15,21 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class PlayerJoinGroup extends JavaPlugin {
 
     public static PlayerJoinGroup plugin;
     private FireworkBuilder fireworkBuilder;
     private MessagesManager messagesManager;
+    private boolean isDebugMode;
+    private Logger logger;
 
     public PlayerJoinGroup() {
         PlayerJoinGroup.plugin = this;
+        this.isDebugMode = false;
         this.fireworkBuilder = new FireworkBuilder();
     }
 
@@ -30,6 +38,13 @@ public class PlayerJoinGroup extends JavaPlugin {
         super.onEnable();
 
         this.messagesManager = null;
+
+        this.logger = this.getLogger();
+
+        this.isDebugMode = this.getConfig().getBoolean("debug", false);
+        if (this.isDebugMode) {
+            this.logger.info("Debug mode enabled.");
+        }
 
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
 
@@ -44,8 +59,8 @@ public class PlayerJoinGroup extends JavaPlugin {
         if (this.checkIfBungee()) {
             this.enableMessageManager();
         } else {
-            getLogger().warning("This server is not hook to BungeeCord. The group feature will not work. And each new connection will be handle locally.");
-            getLogger().warning("If the server is already hooked to BungeeCord, enable it into your spigot.yml as well.");
+            this.logger.warning("This server is not hook to BungeeCord. The group feature will not work. And each new connection will be handle locally.");
+            this.logger.warning("If the server is already hooked to BungeeCord, enable it into your spigot.yml as well.");
         }
     }
 
@@ -82,15 +97,15 @@ public class PlayerJoinGroup extends JavaPlugin {
             int delay = config.getInt("ReconnectDelay");
             RetryPolicy retryPolicy = new ConstantRetryPolicy(maxAttempts, delay);
 
-//            getServer().getPluginManager().registerEvents(new SocketConnectedListener(this),this);
+            getServer().getPluginManager().registerEvents(new SocketConnectedListener(this),this);
 
-            ActionExecutor actionExecutor = new ActionExecutor(this.plugin.getLogger());
-            PlayerMessageConsumer playerMessageConsumer = new PlayerMessageConsumer(this, actionExecutor);
-            ConnectionToServer server = new ConnectionToServer(serverName, socket, playerMessageConsumer, retryPolicy);
+            ActionExecutor actionExecutor = new ActionExecutor(this.logger);
+            PlayerMessageConsumer playerMessageConsumer = new PlayerMessageConsumer(this, actionExecutor, this.logger);
+            ConnectionToServer server = new ConnectionToServer(serverName, socket, playerMessageConsumer, retryPolicy, this.logger);
 
             this.messagesManager = new MessagesManager(server, actionExecutor);
         } catch (IOException exception) {
-            getLogger().warning("Unable to connect to the proxy server. The group feature will not work. And each new connection will be handle locally.");
+            this.logger.warning("Unable to connect to the proxy server. The group feature will not work. And each new connection will be handle locally.");
             throw new RuntimeException(exception);
         }
     }

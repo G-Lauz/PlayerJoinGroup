@@ -4,9 +4,13 @@ import fr.freebuild.playerjoingroup.bungee.listener.PlayerDisconnectListener;
 import fr.freebuild.playerjoingroup.bungee.listener.PlayerJoinListener;
 import fr.freebuild.playerjoingroup.bungee.listener.PlayerSwitchListener;
 
+import fr.freebuild.playerjoingroup.core.log.DebugFormatter;
+import fr.freebuild.playerjoingroup.core.log.DebugLevel;
 import net.md_5.bungee.api.plugin.Plugin;
 
 import java.io.IOException;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Logger;
 
 public class PlayerJoinGroup extends Plugin {
 
@@ -14,6 +18,8 @@ public class PlayerJoinGroup extends Plugin {
 
     private Config config;
     private MessagesManager messagesManager;
+
+    private Logger logger;
 
     public PlayerJoinGroup() {
         PlayerJoinGroup.plugin = this;
@@ -23,11 +29,18 @@ public class PlayerJoinGroup extends Plugin {
     public void onEnable() {
         super.onEnable();
 
+        this.logger = this.getLogger();
+
         try {
             config = new Config(this);
+
+            if (config.isDebugMode()) {
+                this.logger.info("Debug mode enabled.");
+            }
+
         } catch (Exception err) {
-            getLogger().severe("Unable to load the configuration. The plugin won't respond:");
-            getLogger().severe(err.getMessage());
+            this.logger.severe("Unable to load the configuration. The plugin won't respond:");
+            this.logger.severe(err.getMessage());
         }
 
         getProxy().getPluginManager().registerListener(this, new PlayerJoinListener(this));
@@ -45,7 +58,7 @@ public class PlayerJoinGroup extends Plugin {
 
     public void enableMessageManager() {
         try {
-            this.messagesManager = new MessagesManager(this, this.config.getPort(), getLogger());
+            this.messagesManager = new MessagesManager(this, this.config.getPort(), this.logger);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

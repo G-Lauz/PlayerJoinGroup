@@ -2,20 +2,26 @@ package fr.freebuild.playerjoingroup.bungee;
 
 import fr.freebuild.playerjoingroup.core.Connection;
 import fr.freebuild.playerjoingroup.core.MessageConsumer;
+import fr.freebuild.playerjoingroup.core.action.ActionExecutor;
+import fr.freebuild.playerjoingroup.core.log.DebugLevel;
+import fr.freebuild.playerjoingroup.core.protocol.*;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
 import java.util.Queue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 public class ConnectionToClient implements Connection {
 
+    private final PlayerJoinGroup plugin;
     private Socket socket;
     private MessageConsumer messageConsumer;
 
@@ -30,11 +36,16 @@ public class ConnectionToClient implements Connection {
 
     private String name;
 
+    private final CountDownLatch threadsStartedLatch;
+    private final ActionExecutor actionExecutor;
+
     private final Logger logger;
 
-    public ConnectionToClient(Socket socket, MessageConsumer messageConsumer, Logger logger) {
+    public ConnectionToClient(PlayerJoinGroup plugin, Socket socket, MessageConsumer messageConsumer, Logger logger) {
         if (socket.isClosed())
             throw new IllegalStateException("Socket for client " + socket + " is closed.");
+
+        this.plugin = plugin;
 
         this.socket = socket;
         this.messageConsumer = messageConsumer;
@@ -46,10 +57,16 @@ public class ConnectionToClient implements Connection {
 
         this.name = this.socket.getInetAddress().getHostAddress(); // Temporary name
 
+        this.threadsStartedLatch = new CountDownLatch(2);
+        this.actionExecutor = new ActionExecutor(logger);
+
         this.consumer = new Thread("playerjoingroup.bungee.connectiontoclient.consumer." + this.name) {
             @Override
             public void run() {
+                threadsStartedLatch.countDown();
                 consumeMessage();
+
+                logger.log(DebugLevel.DEBUG, "Closing consumer thread for " + name);
             }
         };
         this.consumer.setDaemon(true);
@@ -59,13 +76,40 @@ public class ConnectionToClient implements Connection {
             @Override
             public void run() {
                 establishConnection();
-
+                threadsStartedLatch.countDown();
                 if (isConnected.get())
                     queueIncomingMessage();
+
+                logger.log(DebugLevel.DEBUG, "Closing producer thread for " + name);
             }
         };
         this.producer.setDaemon(true);
         this.producer.start();
+
+        new Thread(() -> {
+            try {
+                logger.log(DebugLevel.DEBUG,"Waiting for threads to start for " + name);
+                threadsStartedLatch.await();
+                logger.log(DebugLevel.DEBUG,"Threads started for " + name + ". Initiating handshake.");
+                initiateHandshake(ConnectionToClient.this);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private void initiateHandshake(Connection connection) {
+        Packet packet = new Packet.Builder(Subchannel.HANDSHAKE).build();
+
+        try {
+            connection.sendMessage(Protocol.constructPacket(packet));
+
+            HandshakeAction handshakeAction = new HandshakeAction(this.plugin.getMessagesManager(), connection.getName(), 1000);
+            this.actionExecutor.resolve(handshakeAction, null);
+        } catch (IOException | ConstructPacketErrorException | InvalidPacketException err) {
+            this.logger.severe(Arrays.toString(err.getStackTrace()));
+            throw new RuntimeException(err);
+        }
     }
 
     private void establishConnection() {
@@ -76,7 +120,7 @@ public class ConnectionToClient implements Connection {
 
             this.logger.info("Connected to " + this.name + ". Waiting for handshake.");
         } catch (IOException exception) {
-            this.logger.severe("Unable to establish connection with " + this.socket.getInetAddress().getHostAddress());
+            this.logger.severe("Unable to establish connection with " + this.name);
             this.logger.severe(exception.getMessage());
         }
     }
@@ -89,45 +133,45 @@ public class ConnectionToClient implements Connection {
                     byte[] msg = new byte[length];
                     dataInputStream.read(msg, 0, length);
 
-                    this.logger.info("[" + Thread.currentThread().getName() + "] Received message " + new String(msg) + " from " + this.socket.getInetAddress().getHostAddress());
+                    this.logger.log(DebugLevel.DEBUG, "Message received: " + new String(msg) + " from " + this.name);
 
                     synchronized (this.messages) {
-                        this.logger.info("[" + Thread.currentThread().getName() + "] Queuing message " + new String(msg) + " from " + this.socket.getInetAddress().getHostAddress());
+                        this.logger.log(DebugLevel.DEBUG, "Message queued: " + new String(msg) + " from " + this.name);
                         this.messages.add(msg);
-                        this.logger.info("[" + Thread.currentThread().getName() + "] Notifying consumer for message " + new String(msg) + " from " + this.socket.getInetAddress().getHostAddress());
+                        this.logger.log(DebugLevel.DEBUG, "Notifying consumer for message " + new String(msg) + " from " + this.name);
                         this.messages.notifyAll();
-                        this.logger.info("[" + Thread.currentThread().getName() + "] Notified consumer for message " + new String(msg) + " from " + this.socket.getInetAddress().getHostAddress());
+                        this.logger.log(DebugLevel.DEBUG, "Notified consumer for message " + new String(msg) + " from " + this.name);
                     }
                 }
             } catch (EOFException endOfFileException) {
                 try {
+                    this.logger.log(DebugLevel.DEBUG, "Connection closed by " + this.name);
                     this.close();
                 } catch (Exception exception) {
                     throw new RuntimeException(exception);
                 }
             } catch (IOException exception) {
-                this.logger.severe("An error occured while reading the message from " + this.socket.getInetAddress().getHostAddress());
+                this.logger.severe("An error occured while reading the message from " + this.name);
                 this.logger.severe(exception.getMessage());
             }
         }
     }
 
     private void consumeMessage() {
-        this.logger.info("[" + Thread.currentThread().getName() + "] Consumer started for " + this.socket.getInetAddress().getHostAddress());
+        this.logger.log(DebugLevel.DEBUG, "Consumer started for " + this.name);
         while (!Thread.currentThread().isInterrupted() && this.isConnected.get()) {
-//            this.logger.info("[" + Thread.currentThread().getName() + "] Waiting (FIRST) for message from " + this.socket.getInetAddress().getHostAddress());
             byte[] msg = null;
             synchronized (this.messages) {
                 try {
                     msg = messages.remove();
-                    this.logger.info("[" + Thread.currentThread().getName() + "] Received message " + new String(msg) + " from " + this.socket.getInetAddress().getHostAddress());
+                    this.logger.log(DebugLevel.DEBUG, "Message received: " + new String(msg) + " from " + this.name);
                 } catch (NoSuchElementException emptyQueue) {
                     try {
-                        this.logger.info("[" + Thread.currentThread().getName() + "] Waiting for message from " + this.socket.getInetAddress().getHostAddress());
+                        this.logger.log(DebugLevel.DEBUG, "Waiting for message from " + this.name);
                         this.messages.wait();
-                        this.logger.info("[" + Thread.currentThread().getName() + "] Stop waiting for message from " + this.socket.getInetAddress().getHostAddress());
+                        this.logger.log(DebugLevel.DEBUG, "Notified for message from " + this.name + ", stopping waiting.");
                     } catch (InterruptedException e) {
-                        this.logger.info("[" + Thread.currentThread().getName() + "] Interrupted while waiting for message from " + this.socket.getInetAddress().getHostAddress());
+                        this.logger.log(DebugLevel.DEBUG, "Interrupted while waiting for message from " + this.name + ".");
                         Thread.currentThread().interrupt();
                         break;
                     }
@@ -135,7 +179,7 @@ public class ConnectionToClient implements Connection {
             }
 
             if (msg != null) {
-                this.logger.info("[" + Thread.currentThread().getName() + "] Processing message " + new String(msg) + " from " + this.socket.getInetAddress().getHostAddress());
+                this.logger.log(DebugLevel.DEBUG, "Processing message " + new String(msg) + " from " + this.name);
                 this.messageConsumer.processMessage(this, msg);
             }
         }
@@ -150,7 +194,7 @@ public class ConnectionToClient implements Connection {
                 this.dataOutputStream.flush();
             }
         } else {
-            throw new IOException("Connection to " + this.socket.getInetAddress().getHostAddress() + " is not established.");
+            throw new IOException("Connection to " + this.name + " is not established.");
         }
     }
 
@@ -187,5 +231,9 @@ public class ConnectionToClient implements Connection {
     @Override
     public synchronized String getName() {
         return this.name;
+    }
+
+    public ActionExecutor getActionExecutor() {
+        return this.actionExecutor;
     }
 }

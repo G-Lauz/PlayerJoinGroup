@@ -41,7 +41,7 @@ public class ServerMessageConsumer implements MessageConsumer {
         switch (subchannelType) {
             case BROADCAST -> this.messageManager.sendToAll(packet);
             case EVENT -> this.handleEventSubchannel(packet);
-            case HANDSHAKE -> this.handleHandshakeSubchannel(packet, connection);
+            case HANDSHAKE -> this.handleHandshakeSubchannel(packet, (ConnectionToClient) connection);
             default -> throw new UnknownSubchannelException(subchannel, "Will ignore this message");
         }
     }
@@ -55,15 +55,11 @@ public class ServerMessageConsumer implements MessageConsumer {
         }
     }
 
-    private void handleHandshakeSubchannel(Packet packet, Connection connection) {
+    private void handleHandshakeSubchannel(Packet packet, ConnectionToClient connection) {
         String serverName = packet.getData();
 
-        this.messageManager.updateClientName(connection, serverName);
-
-        Packet ack = new Packet.Builder(Subchannel.HANDSHAKE_ACK)
-                .setData(serverName)
-                .build();
-        this.messageManager.sendToOne(serverName, ack);
+        HandshakeAction action = new HandshakeAction(this.plugin.getMessagesManager(), connection.getName(), 1000);
+        connection.getActionExecutor().resolve(action, serverName);
     }
 
     private void onServerConnect(Packet packet) {

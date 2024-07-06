@@ -8,6 +8,8 @@ import org.bukkit.event.Listener;
 
 import java.io.IOException;
 
+import static org.bukkit.Bukkit.getLogger;
+
 public class SocketConnectedListener implements Listener {
 
     private final PlayerJoinGroup plugin;
@@ -18,17 +20,6 @@ public class SocketConnectedListener implements Listener {
 
     @EventHandler
     public void onSocketConnected(SocketConnectedEvent event) {
-        try {
-            Packet packet = new Packet.Builder("HANDSHAKE")
-                    .setData(event.getServerName())
-                    .build();
-            this.plugin.getMessageManager().send(Protocol.constructPacket(packet));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (ConstructPacketErrorException e) {
-            throw new RuntimeException(e);
-        } catch (InvalidPacketException e) {
-            throw new RuntimeException(e);
-        }
+        getLogger().info("Connected to the proxy as " + event.getServerName());
     }
 }
