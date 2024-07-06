@@ -101,7 +101,6 @@ public class PlayerJoinGroup extends JavaPlugin {
             this.messagesManager = new MessagesManager(server, actionExecutor);
         } catch (IOException exception) {
             this.logger.warning("Unable to connect to the proxy server. The group feature will not work. And each new connection will be handle locally.");
-            throw new RuntimeException(exception);
         }
     }
 

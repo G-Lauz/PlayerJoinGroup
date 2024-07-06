@@ -43,16 +43,16 @@ public class PlayerJoinListener implements Listener {
             event.setJoinMessage(message);
         } else {
             event.setJoinMessage(null);
-        }
 
-        String serverName = this.plugin.getConfig().getString("ServerName");
-        UUID playerUUID = player.getUniqueId();
-        String playerName = player.getDisplayName();
-        String eventName = EventType.SERVER_CONNECT.getValue();
+            String serverName = this.plugin.getConfig().getString("ServerName");
+            UUID playerUUID = player.getUniqueId();
+            String playerName = player.getDisplayName();
+            String eventName = EventType.SERVER_CONNECT.getValue();
 
-        if (player == null || !player.hasPermission("essentials.silentjoin")) {
-            ConnectAction action = new ConnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
-            this.plugin.getMessageManager().getActionExecutor().resolve(action, player.hasPlayedBefore());
+            if (player == null || !player.hasPermission("essentials.silentjoin")) {
+                ConnectAction action = new ConnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
+                this.plugin.getMessageManager().getActionExecutor().resolve(action, player.hasPlayedBefore());
+            }
         }
     }
 
@@ -66,19 +66,20 @@ public class PlayerJoinListener implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         if (!this.plugin.isMessageManagerEnabled())
             event.setQuitMessage(Utils.getPlayerLeaveMessage(event.getPlayer().getDisplayName()));
-        else
+        else {
             event.setQuitMessage(null);
 
-        String serverName = this.plugin.getConfig().getString("ServerName");
-        UUID playerUUID = event.getPlayer().getUniqueId();
-        String playerName = event.getPlayer().getDisplayName();
-        String eventName = EventType.SERVER_DISCONNECT.getValue();
+            String serverName = this.plugin.getConfig().getString("ServerName");
+            UUID playerUUID = event.getPlayer().getUniqueId();
+            String playerName = event.getPlayer().getDisplayName();
+            String eventName = EventType.SERVER_DISCONNECT.getValue();
 
-        Player player = event.getPlayer();
+            Player player = event.getPlayer();
 
-        if (player == null || !player.hasPermission("essentials.silentquit")) {
-            DisconnectAction action = new DisconnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
-            this.plugin.getMessageManager().getActionExecutor().resolve(action, null);
+            if (player == null || !player.hasPermission("essentials.silentquit")) {
+                DisconnectAction action = new DisconnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
+                this.plugin.getMessageManager().getActionExecutor().resolve(action, null);
+            }
         }
     }
 
