@@ -4,13 +4,10 @@ import fr.freebuild.playerjoingroup.bungee.listener.PlayerDisconnectListener;
 import fr.freebuild.playerjoingroup.bungee.listener.PlayerJoinListener;
 import fr.freebuild.playerjoingroup.bungee.listener.PlayerSwitchListener;
 
-import fr.freebuild.playerjoingroup.core.log.DebugFormatter;
-import fr.freebuild.playerjoingroup.core.log.DebugLevel;
+import fr.freebuild.playerjoingroup.core.log.DebugLogger;
 import net.md_5.bungee.api.plugin.Plugin;
 
 import java.io.IOException;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Logger;
 
 public class PlayerJoinGroup extends Plugin {
 
@@ -19,7 +16,7 @@ public class PlayerJoinGroup extends Plugin {
     private Config config;
     private MessagesManager messagesManager;
 
-    private Logger logger;
+    private DebugLogger logger;
 
     public PlayerJoinGroup() {
         PlayerJoinGroup.plugin = this;
@@ -29,10 +26,10 @@ public class PlayerJoinGroup extends Plugin {
     public void onEnable() {
         super.onEnable();
 
-        this.logger = this.getLogger();
-
         try {
             config = new Config(this);
+
+            this.logger = new DebugLogger(this.getLogger(), config.isDebugMode());
 
             if (config.isDebugMode()) {
                 this.logger.info("Debug mode enabled.");

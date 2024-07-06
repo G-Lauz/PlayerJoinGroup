@@ -2,15 +2,13 @@ package fr.freebuild.playerjoingroup.bungee;
 
 import fr.freebuild.playerjoingroup.core.Connection;
 import fr.freebuild.playerjoingroup.core.MessageConsumer;
-import fr.freebuild.playerjoingroup.core.action.ActionExecutor;
-import fr.freebuild.playerjoingroup.core.log.DebugLevel;
+import fr.freebuild.playerjoingroup.core.log.DebugLogger;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 import net.md_5.bungee.api.config.ServerInfo;
 
 import java.io.IOException;
 import java.net.*;
 import java.util.*;
-import java.util.logging.Logger;
 
 public class MessagesManager {
 
@@ -19,9 +17,9 @@ public class MessagesManager {
     private Hashtable<String, Connection> clientsRegistry;
     private Thread acceptor;
     private MessageConsumer messageConsumer;
-    private Logger logger;
+    private DebugLogger logger;
 
-    public MessagesManager(PlayerJoinGroup plugin, int port, Logger logger) throws IOException {
+    public MessagesManager(PlayerJoinGroup plugin, int port, DebugLogger logger) throws IOException {
         this.plugin = plugin;
 
         this.messageConsumer = new ServerMessageConsumer(plugin, this, logger);
@@ -60,7 +58,7 @@ public class MessagesManager {
 
     public void updateClientName(String oldName, String newName) {
         synchronized (this.clientsRegistry) {
-            this.logger.log(DebugLevel.DEBUG, "Updating client name from \"" + oldName + "\" to \"" + newName + "\".");
+            this.logger.debug("Updating client name from \"" + oldName + "\" to \"" + newName + "\".");
             Connection connection = this.clientsRegistry.remove(oldName);
             connection.setName(newName);
             this.clientsRegistry.put(newName, connection);
@@ -71,7 +69,7 @@ public class MessagesManager {
 
         ServerInfo serverInfo = this.plugin.getProxy().getServerInfo(server);
         if (serverInfo == null) {
-            plugin.getLogger().warning("Unable to find server \"" + server + "\", ignoring it.");
+            this.logger.warning("Unable to find server \"" + server + "\", ignoring it.");
             return;
         }
 
@@ -81,7 +79,7 @@ public class MessagesManager {
         }
 
         if (!clientIsRegistered) {
-            plugin.getLogger().warning(server + "\" did not handshake, ignoring it.");
+            this.logger.warning(server + "\" did not handshake, ignoring it.");
             return;
         }
 
@@ -91,7 +89,7 @@ public class MessagesManager {
         }
 
         if (client == null) {
-            this.plugin.getLogger().warning("Client \"" + server + "\" is null, ignoring it.");
+            this.logger.warning("Client \"" + server + "\" is null, ignoring it.");
             return;
         }
 
@@ -99,7 +97,7 @@ public class MessagesManager {
             client.sendMessage(Protocol.constructPacket(packet));
         } catch (IOException e) {
             if (e.getMessage().contains("Broken pipe")) {
-                this.plugin.getLogger().warning("Broken pipe: Unable to send packet to \"" + server + "\", removing it from the list.");
+                this.logger.warning("Broken pipe: Unable to send packet to \"" + server + "\", removing it from the list.");
 
                 Connection connection = null;
                 synchronized (this.clientsRegistry) {
@@ -109,12 +107,12 @@ public class MessagesManager {
                 try {
                     connection.close();
                 } catch (IOException | InterruptedException err) {
-                    this.plugin.getLogger().severe(Arrays.toString(err.getStackTrace()));
+                    this.logger.severe(Arrays.toString(err.getStackTrace()));
                     throw new RuntimeException(err);
                 }
             }
         } catch (InvalidPacketException | ConstructPacketErrorException err) { // TODO better exception handling
-            this.plugin.getLogger().severe(Arrays.toString(err.getStackTrace()));
+            this.logger.severe(Arrays.toString(err.getStackTrace()));
             throw new RuntimeException(err);
         }
     }

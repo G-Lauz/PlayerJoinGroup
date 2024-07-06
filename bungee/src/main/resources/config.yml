@@ -8,6 +8,7 @@
 #
 # Make sure the port match the same as defined in the Spigot plugin configuration
 port: 26005
+debug: false
 group:
   - survival:
       - survival1

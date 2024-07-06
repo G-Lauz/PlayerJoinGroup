@@ -1,16 +1,17 @@
 package fr.freebuild.playerjoingroup.core.action;
 
+import fr.freebuild.playerjoingroup.core.log.DebugLogger;
+
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.logging.Logger;
 
 public class ActionExecutor {
     private final Object lock;
-    private final Logger logger;
+    private final DebugLogger logger;
     private final Map<Integer, Action> commandIndex;
 
-    public ActionExecutor(Logger logger) {
+    public ActionExecutor(DebugLogger logger) {
         this.logger = logger;
         this.lock = new Object();
         this.commandIndex = new HashMap<>();

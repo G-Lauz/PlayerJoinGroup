@@ -3,7 +3,7 @@ package fr.freebuild.playerjoingroup.bungee;
 import fr.freebuild.playerjoingroup.core.Connection;
 import fr.freebuild.playerjoingroup.core.MessageConsumer;
 import fr.freebuild.playerjoingroup.core.action.ActionExecutor;
-import fr.freebuild.playerjoingroup.core.log.DebugLevel;
+import fr.freebuild.playerjoingroup.core.log.DebugLogger;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 
 import java.io.DataInputStream;
@@ -17,7 +17,6 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Logger;
 
 public class ConnectionToClient implements Connection {
 
@@ -39,9 +38,9 @@ public class ConnectionToClient implements Connection {
     private final CountDownLatch threadsStartedLatch;
     private final ActionExecutor actionExecutor;
 
-    private final Logger logger;
+    private final DebugLogger logger;
 
-    public ConnectionToClient(PlayerJoinGroup plugin, Socket socket, MessageConsumer messageConsumer, Logger logger) {
+    public ConnectionToClient(PlayerJoinGroup plugin, Socket socket, MessageConsumer messageConsumer, DebugLogger logger) {
         if (socket.isClosed())
             throw new IllegalStateException("Socket for client " + socket + " is closed.");
 
@@ -66,7 +65,7 @@ public class ConnectionToClient implements Connection {
                 threadsStartedLatch.countDown();
                 consumeMessage();
 
-                logger.log(DebugLevel.DEBUG, "Closing consumer thread for " + name);
+                logger.debug("Closing consumer thread for " + name);
             }
         };
         this.consumer.setDaemon(true);
@@ -80,7 +79,7 @@ public class ConnectionToClient implements Connection {
                 if (isConnected.get())
                     queueIncomingMessage();
 
-                logger.log(DebugLevel.DEBUG, "Closing producer thread for " + name);
+                logger.debug("Closing producer thread for " + name);
             }
         };
         this.producer.setDaemon(true);
@@ -88,9 +87,9 @@ public class ConnectionToClient implements Connection {
 
         new Thread(() -> {
             try {
-                logger.log(DebugLevel.DEBUG,"Waiting for threads to start for " + name);
+                logger.debug("Waiting for threads to start for " + name);
                 threadsStartedLatch.await();
-                logger.log(DebugLevel.DEBUG,"Threads started for " + name + ". Initiating handshake.");
+                logger.debug("Threads started for " + name + ". Initiating handshake.");
                 initiateHandshake(ConnectionToClient.this);
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -104,7 +103,7 @@ public class ConnectionToClient implements Connection {
         try {
             connection.sendMessage(Protocol.constructPacket(packet));
 
-            HandshakeAction handshakeAction = new HandshakeAction(this.plugin.getMessagesManager(), connection.getName(), 1000);
+            HandshakeAction handshakeAction = new HandshakeAction(this.plugin.getMessagesManager(), connection.getName(), 1000, this.logger);
             this.actionExecutor.resolve(handshakeAction, null);
         } catch (IOException | ConstructPacketErrorException | InvalidPacketException err) {
             this.logger.severe(Arrays.toString(err.getStackTrace()));
@@ -118,7 +117,7 @@ public class ConnectionToClient implements Connection {
             this.dataOutputStream = new DataOutputStream(this.socket.getOutputStream());
             this.isConnected.set(true);
 
-            this.logger.info("Connected to " + this.name + ". Waiting for handshake.");
+            this.logger.debug("Connected to " + this.name + ". Waiting for handshake.");
         } catch (IOException exception) {
             this.logger.severe("Unable to establish connection with " + this.name);
             this.logger.severe(exception.getMessage());
@@ -133,19 +132,19 @@ public class ConnectionToClient implements Connection {
                     byte[] msg = new byte[length];
                     dataInputStream.read(msg, 0, length);
 
-                    this.logger.log(DebugLevel.DEBUG, "Message received: " + new String(msg) + " from " + this.name);
+                    this.logger.debug("Message received from " + this.name);
 
                     synchronized (this.messages) {
-                        this.logger.log(DebugLevel.DEBUG, "Message queued: " + new String(msg) + " from " + this.name);
+                        this.logger.debug("Message queued from " + this.name);
                         this.messages.add(msg);
-                        this.logger.log(DebugLevel.DEBUG, "Notifying consumer for message " + new String(msg) + " from " + this.name);
+                        this.logger.debug("Notifying consumer for message from " + this.name);
                         this.messages.notifyAll();
-                        this.logger.log(DebugLevel.DEBUG, "Notified consumer for message " + new String(msg) + " from " + this.name);
+                        this.logger.debug("Notified consumer for message from " + this.name);
                     }
                 }
             } catch (EOFException endOfFileException) {
                 try {
-                    this.logger.log(DebugLevel.DEBUG, "Connection closed by " + this.name);
+                    this.logger.debug("Connection closed by " + this.name);
                     this.close();
                 } catch (Exception exception) {
                     throw new RuntimeException(exception);
@@ -158,20 +157,26 @@ public class ConnectionToClient implements Connection {
     }
 
     private void consumeMessage() {
-        this.logger.log(DebugLevel.DEBUG, "Consumer started for " + this.name);
+        try {
+            this.threadsStartedLatch.await();
+        } catch (InterruptedException exception) {
+            exception.printStackTrace();
+        }
+
+        this.logger.debug("Consumer started for " + this.name);
         while (!Thread.currentThread().isInterrupted() && this.isConnected.get()) {
             byte[] msg = null;
             synchronized (this.messages) {
                 try {
                     msg = messages.remove();
-                    this.logger.log(DebugLevel.DEBUG, "Message received: " + new String(msg) + " from " + this.name);
+                    this.logger.debug("(Consumer) Message received from " + this.name);
                 } catch (NoSuchElementException emptyQueue) {
                     try {
-                        this.logger.log(DebugLevel.DEBUG, "Waiting for message from " + this.name);
+                        this.logger.debug("Waiting for message from " + this.name);
                         this.messages.wait();
-                        this.logger.log(DebugLevel.DEBUG, "Notified for message from " + this.name + ", stopping waiting.");
+                        this.logger.debug("Notified for message from " + this.name + ", stopping waiting.");
                     } catch (InterruptedException e) {
-                        this.logger.log(DebugLevel.DEBUG, "Interrupted while waiting for message from " + this.name + ".");
+                        this.logger.debug("Interrupted while waiting for message from " + this.name + ".");
                         Thread.currentThread().interrupt();
                         break;
                     }
@@ -179,7 +184,7 @@ public class ConnectionToClient implements Connection {
             }
 
             if (msg != null) {
-                this.logger.log(DebugLevel.DEBUG, "Processing message " + new String(msg) + " from " + this.name);
+                this.logger.debug("Processing message from " + this.name);
                 this.messageConsumer.processMessage(this, msg);
             }
         }

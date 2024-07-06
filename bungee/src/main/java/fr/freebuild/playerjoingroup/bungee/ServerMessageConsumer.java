@@ -3,20 +3,20 @@ package fr.freebuild.playerjoingroup.bungee;
 import fr.freebuild.playerjoingroup.core.Connection;
 import fr.freebuild.playerjoingroup.core.MessageConsumer;
 import fr.freebuild.playerjoingroup.core.event.EventType;
+import fr.freebuild.playerjoingroup.core.log.DebugLogger;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 public class ServerMessageConsumer implements MessageConsumer {
 
     private final PlayerJoinGroup plugin;
     private final MessagesManager messageManager;
-    private final Logger logger;
+    private final DebugLogger logger;
 
-    public ServerMessageConsumer(PlayerJoinGroup plugin, MessagesManager messageManager, Logger logger) {
+    public ServerMessageConsumer(PlayerJoinGroup plugin, MessagesManager messageManager, DebugLogger logger) {
         this.plugin = plugin;
         this.messageManager = messageManager;
         this.logger = logger;
@@ -58,7 +58,7 @@ public class ServerMessageConsumer implements MessageConsumer {
     private void handleHandshakeSubchannel(Packet packet, ConnectionToClient connection) {
         String serverName = packet.getData();
 
-        HandshakeAction action = new HandshakeAction(this.plugin.getMessagesManager(), connection.getName(), 1000);
+        HandshakeAction action = new HandshakeAction(this.plugin.getMessagesManager(), connection.getName(), 1000, this.logger);
         connection.getActionExecutor().resolve(action, serverName);
     }
 

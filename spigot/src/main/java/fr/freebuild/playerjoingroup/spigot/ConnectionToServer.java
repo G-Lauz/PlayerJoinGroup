@@ -2,9 +2,7 @@ package fr.freebuild.playerjoingroup.spigot;
 
 import fr.freebuild.playerjoingroup.core.Connection;
 import fr.freebuild.playerjoingroup.core.MessageConsumer;
-import fr.freebuild.playerjoingroup.core.log.DebugLevel;
-import fr.freebuild.playerjoingroup.spigot.event.SocketConnectedEvent;
-import org.bukkit.Bukkit;
+import fr.freebuild.playerjoingroup.core.log.DebugLogger;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -16,7 +14,6 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Logger;
 
 public class ConnectionToServer implements Connection {
     private RetryPolicy retryPolicy;
@@ -33,9 +30,9 @@ public class ConnectionToServer implements Connection {
 
     private String name;
 
-    private final Logger logger;
+    private final DebugLogger logger;
 
-    public ConnectionToServer(String serverName, Socket socket, MessageConsumer messageConsumer, RetryPolicy retryPolicy, Logger logger) {
+    public ConnectionToServer(String serverName, Socket socket, MessageConsumer messageConsumer, RetryPolicy retryPolicy, DebugLogger logger) {
         this.serverName = serverName;
         this.socket = socket;
         this.retryPolicy = retryPolicy;
@@ -53,6 +50,7 @@ public class ConnectionToServer implements Connection {
             @Override
             public void run() {
                 establishConnection();
+                logger.debug("Producer stopped for " + serverName + ".");
             }
         };
         this.producer.setDaemon(true);
@@ -63,6 +61,7 @@ public class ConnectionToServer implements Connection {
             public void run() {
                 threadsStartedLatch.countDown();
                 consumeMessage();
+                logger.debug("Consumer stopped for " + serverName + ".");
             }
         };
         this.consumer.setDaemon(true);
@@ -70,15 +69,10 @@ public class ConnectionToServer implements Connection {
     }
 
     private void establishConnection() {
-//        try {
-//            this.threadsStartedLatch.await();
-//        } catch (InterruptedException exception) {
-//            exception.printStackTrace();
-//        }
 
         while(!Thread.currentThread().isInterrupted()) {
             int attempts = 0;
-            this.logger.info("[Debug] Establishing connection to the proxy server (Attempt " + attempts + ")...");
+            this.logger.debug("Establishing connection to the proxy server (Attempt " + attempts + ")...");
             while(!isConnected.get() && retryPolicy.shouldRetry(attempts)) {
                 try {
                     if (!socket.isConnected() || socket.isClosed())
@@ -88,9 +82,6 @@ public class ConnectionToServer implements Connection {
                         dataInputStream = new DataInputStream(socket.getInputStream());
                         dataOutputStream = new DataOutputStream(socket.getOutputStream());
                         isConnected.set(true);
-
-//                        Bukkit.getPluginManager().callEvent(new SocketConnectedEvent(serverName));
-
                         break;
                     }
                 } catch (IOException exception) {
@@ -130,7 +121,7 @@ public class ConnectionToServer implements Connection {
             exception.printStackTrace();
         }
 
-        this.logger.info("[Debug] Producer started for " + this.serverName + ".");
+        this.logger.debug("Producer started for " + this.serverName + ".");
         while (!Thread.currentThread().isInterrupted() && isConnected.get()) {
             try {
                 int length = dataInputStream.readInt();
@@ -138,18 +129,18 @@ public class ConnectionToServer implements Connection {
                     byte[] msg = new byte[length];
                     dataInputStream.read(msg, 0, msg.length);
 
-                    this.logger.info("[Debug] Message received: " + new String(msg));
+                    this.logger.debug("Message received");
 
                     synchronized (messages) {
-                        this.logger.info("[Debug] Queuing message " + new String(msg));
+                        this.logger.debug("Queuing message");
                         messages.add(msg);
-                        this.logger.info("[Debug] Notifying consumer for message " + new String(msg));
+                        this.logger.debug("Notifying consumer");
                         messages.notifyAll();
-                        this.logger.info("[Debug] Notified consumer for message " + new String(msg));
+                        this.logger.debug("Consumer notified");
                     }
                 }
             } catch (EOFException endOfFileException) {
-                this.logger.info("[Debug] Connection closed by the proxy server.");
+                this.logger.debug("Connection closed by the proxy server.");
                 // Close the connection
                 try {
                     this.dataInputStream.close();
@@ -174,20 +165,20 @@ public class ConnectionToServer implements Connection {
             exception.printStackTrace();
         }
 
-        this.logger.info("[Debug] Consumer started for " + this.serverName + ".");
+        this.logger.debug("Consumer started for " + this.serverName + ".");
         while(!Thread.currentThread().isInterrupted() && this.isConnected.get()) {
             byte[] msg = null;
             synchronized (messages) {
                 try {
                     msg = messages.remove();
-                    this.logger.info("[Debug] Received message " + new String(msg));
+                    this.logger.debug("(Consumer) Received message");
                 } catch (NoSuchElementException emptyQueue) { // Queue is empty
                     try {
-                        this.logger.info("[Debug] Waiting for message...");
+                        this.logger.debug("Waiting for message...");
                         messages.wait();
-                        this.logger.info("[Debug] Notified for message, stopping waiting...");
+                        this.logger.debug("Notified for message, stopping waiting...");
                     } catch (InterruptedException interruptedException) {
-                        this.logger.info("[Debug] Interrupted while waiting for message...");
+                        this.logger.debug("Interrupted while waiting for message...");
                         Thread.currentThread().interrupt();
                         break;
                     }
@@ -195,11 +186,10 @@ public class ConnectionToServer implements Connection {
             }
 
             if (msg != null) {
-                this.logger.info("[Debug] Processing message " + new String(msg));
+                this.logger.debug("Processing message");
                 this.messageConsumer.processMessage(this, msg);
             }
         }
-        this.logger.info("[Debug] Consumer stopped for " + this.serverName + ".");
     }
 
     @Override

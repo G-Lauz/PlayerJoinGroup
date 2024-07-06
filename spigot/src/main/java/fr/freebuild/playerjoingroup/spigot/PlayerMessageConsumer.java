@@ -4,6 +4,7 @@ import fr.freebuild.playerjoingroup.core.Connection;
 import fr.freebuild.playerjoingroup.core.action.ActionExecutor;
 import fr.freebuild.playerjoingroup.core.MessageConsumer;
 import fr.freebuild.playerjoingroup.core.event.EventType;
+import fr.freebuild.playerjoingroup.core.log.DebugLogger;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 import fr.freebuild.playerjoingroup.spigot.actions.ConnectAction;
 import fr.freebuild.playerjoingroup.spigot.actions.DisconnectAction;
@@ -14,7 +15,6 @@ import org.bukkit.entity.Player;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.logging.Logger;
 
 import static org.bukkit.Bukkit.*;
 
@@ -22,9 +22,9 @@ public class PlayerMessageConsumer implements MessageConsumer {
     private final PlayerJoinGroup plugin;
     private final ActionExecutor actionExecutor;
 
-    private final Logger logger;
+    private final DebugLogger logger;
 
-    public PlayerMessageConsumer(PlayerJoinGroup plugin, ActionExecutor actionExecutor, Logger logger) {
+    public PlayerMessageConsumer(PlayerJoinGroup plugin, ActionExecutor actionExecutor, DebugLogger logger) {
         this.plugin = plugin;
         this.actionExecutor = actionExecutor;
         this.logger = logger;

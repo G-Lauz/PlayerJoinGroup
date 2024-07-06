@@ -1,8 +1,7 @@
 package fr.freebuild.playerjoingroup.spigot;
 
 import fr.freebuild.playerjoingroup.core.action.ActionExecutor;
-import fr.freebuild.playerjoingroup.core.log.DebugFormatter;
-import fr.freebuild.playerjoingroup.core.log.DebugLevel;
+import fr.freebuild.playerjoingroup.core.log.DebugLogger;
 import fr.freebuild.playerjoingroup.spigot.commands.CommandHandler;
 import fr.freebuild.playerjoingroup.spigot.commands.ReloadCommand;
 import fr.freebuild.playerjoingroup.spigot.commands.StatusCommand;
@@ -15,9 +14,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class PlayerJoinGroup extends JavaPlugin {
 
@@ -25,7 +21,7 @@ public class PlayerJoinGroup extends JavaPlugin {
     private FireworkBuilder fireworkBuilder;
     private MessagesManager messagesManager;
     private boolean isDebugMode;
-    private Logger logger;
+    private DebugLogger logger;
 
     public PlayerJoinGroup() {
         PlayerJoinGroup.plugin = this;
@@ -39,9 +35,8 @@ public class PlayerJoinGroup extends JavaPlugin {
 
         this.messagesManager = null;
 
-        this.logger = this.getLogger();
-
         this.isDebugMode = this.getConfig().getBoolean("debug", false);
+        this.logger = new DebugLogger(this.getLogger(), this.isDebugMode);
         if (this.isDebugMode) {
             this.logger.info("Debug mode enabled.");
         }
@@ -97,7 +92,7 @@ public class PlayerJoinGroup extends JavaPlugin {
             int delay = config.getInt("ReconnectDelay");
             RetryPolicy retryPolicy = new ConstantRetryPolicy(maxAttempts, delay);
 
-            getServer().getPluginManager().registerEvents(new SocketConnectedListener(this),this);
+            getServer().getPluginManager().registerEvents(new SocketConnectedListener(this.logger),this);
 
             ActionExecutor actionExecutor = new ActionExecutor(this.logger);
             PlayerMessageConsumer playerMessageConsumer = new PlayerMessageConsumer(this, actionExecutor, this.logger);
