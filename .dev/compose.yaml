@@ -23,10 +23,10 @@ services:
       context: ../
       dockerfile: .dev/spigot/Dockerfile
       args:
-        - MINECRAFT_VERSION=1.21
+        - MINECRAFT_VERSION=1.21.1
         - SERVER_MEMORY=1
         - SERVER_PORT=25565
-    image: g-lauz/spigot:1.21
+    image: g-lauz/spigot:1.21.1
     stdin_open: true
     tty: true
     ports:
@@ -39,10 +39,10 @@ services:
       context: ../
       dockerfile: .dev/spigot/Dockerfile
       args:
-        - MINECRAFT_VERSION=1.21
+        - MINECRAFT_VERSION=1.21.1
         - SERVER_MEMORY=1
         - SERVER_PORT=25565
-    image: g-lauz/spigot:1.21
+    image: g-lauz/spigot:1.21.1
     stdin_open: true
     tty: true
     ports:

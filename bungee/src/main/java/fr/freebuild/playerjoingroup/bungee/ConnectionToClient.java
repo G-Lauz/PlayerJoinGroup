@@ -5,6 +5,7 @@ import fr.freebuild.playerjoingroup.core.MessageConsumer;
 import fr.freebuild.playerjoingroup.core.action.ActionExecutor;
 import fr.freebuild.playerjoingroup.core.log.DebugLogger;
 import fr.freebuild.playerjoingroup.core.protocol.*;
+import net.md_5.bungee.api.scheduler.ScheduledTask;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -30,8 +31,8 @@ public class ConnectionToClient implements Connection {
     private DataOutputStream dataOutputStream;
     private Queue<byte[]> messages;
 
-    private Thread producer;
-    private Thread consumer;
+    private ScheduledTask producer;
+    private ScheduledTask consumer;
 
     private String name;
 
@@ -59,33 +60,22 @@ public class ConnectionToClient implements Connection {
         this.threadsStartedLatch = new CountDownLatch(2);
         this.actionExecutor = new ActionExecutor(logger);
 
-        this.consumer = new Thread("playerjoingroup.bungee.connectiontoclient.consumer." + this.name) {
-            @Override
-            public void run() {
-                threadsStartedLatch.countDown();
-                consumeMessage();
+        this.consumer = this.plugin.getProxy().getScheduler().runAsync(this.plugin, () -> {
+            threadsStartedLatch.countDown();
+            consumeMessage();
+            logger.debug("Closing consumer thread for " + name);
+        });
 
-                logger.debug("Closing consumer thread for " + name);
-            }
-        };
-        this.consumer.setDaemon(true);
-        this.consumer.start();
+        this.producer = this.plugin.getProxy().getScheduler().runAsync(this.plugin, () -> {
+            establishConnection();
+            threadsStartedLatch.countDown();
+            if (isConnected.get())
+                queueIncomingMessage();
 
-        this.producer = new Thread("playerjoingroup.bungee.connectiontoclient.socket." + this.name) {
-            @Override
-            public void run() {
-                establishConnection();
-                threadsStartedLatch.countDown();
-                if (isConnected.get())
-                    queueIncomingMessage();
+            logger.debug("Closing producer thread for " + name);
+        });
 
-                logger.debug("Closing producer thread for " + name);
-            }
-        };
-        this.producer.setDaemon(true);
-        this.producer.start();
-
-        new Thread(() -> {
+        this.plugin.getProxy().getScheduler().runAsync(this.plugin, () -> {
             try {
                 logger.debug("Waiting for threads to start for " + name);
                 threadsStartedLatch.await();
@@ -94,7 +84,7 @@ public class ConnectionToClient implements Connection {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        }).start();
+        });
     }
 
     private void initiateHandshake(Connection connection) {
@@ -204,20 +194,15 @@ public class ConnectionToClient implements Connection {
     }
 
     @Override
-    public void close() throws IOException, InterruptedException {
+    public void close() throws IOException {
         this.isConnected.set(false);
 
         // Close the producer thread
         this.dataInputStream.close();
         this.dataOutputStream.close();
         this.socket.close();
-        this.producer.join();
-
-        // Close the consumer thread
-        if (this.consumer != null && this.consumer.isAlive()) {
-            this.consumer.interrupt();
-            this.consumer.join();
-        }
+        this.producer.cancel();
+        this.consumer.cancel();
     }
 
     @Override
@@ -228,9 +213,6 @@ public class ConnectionToClient implements Connection {
     @Override
     public synchronized void setName(String name) {
         this.name = name;
-
-        this.producer.setName("playerjoingroup.bungee.connectiontoclient." + this.name + ".socket");
-        this.consumer.setName("playerjoingroup.bungee.connectiontoclient." + this.name + ".consumer");
     }
 
     @Override
