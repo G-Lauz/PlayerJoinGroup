@@ -45,6 +45,7 @@ public class PlayerJoinGroup extends Plugin {
         getProxy().getPluginManager().registerListener(this, new PlayerDisconnectListener(this));
 
         enableMessageManager();
+
     }
 
     @Override

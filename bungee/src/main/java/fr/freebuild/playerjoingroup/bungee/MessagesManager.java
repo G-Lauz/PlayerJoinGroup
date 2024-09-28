@@ -5,6 +5,7 @@ import fr.freebuild.playerjoingroup.core.MessageConsumer;
 import fr.freebuild.playerjoingroup.core.log.DebugLogger;
 import fr.freebuild.playerjoingroup.core.protocol.*;
 import net.md_5.bungee.api.config.ServerInfo;
+import net.md_5.bungee.api.scheduler.ScheduledTask;
 
 import java.io.IOException;
 import java.net.*;
@@ -15,7 +16,7 @@ public class MessagesManager {
     private final PlayerJoinGroup plugin;
     private ServerSocket serverSocket;
     private Hashtable<String, Connection> clientsRegistry;
-    private Thread acceptor;
+    private ScheduledTask acceptor;
     private MessageConsumer messageConsumer;
     private DebugLogger logger;
 
@@ -29,14 +30,7 @@ public class MessagesManager {
 
         this.logger = logger;
 
-        this.acceptor = new Thread("playerjoingroup.bungee.messagemanager.acceptor") {
-            @Override
-            public void run() {
-                acceptClient();
-            }
-        };
-        this.acceptor.setDaemon(true);
-        this.acceptor.start();
+        this.acceptor = this.plugin.getProxy().getScheduler().runAsync(this.plugin, this::acceptClient);
     }
 
     private void acceptClient() {
@@ -130,10 +124,7 @@ public class MessagesManager {
     }
 
     public void close() throws InterruptedException{
-        if (this.acceptor != null && this.acceptor.isAlive()) {
-            this.acceptor.interrupt();
-            this.acceptor.join();
-        }
+        this.acceptor.cancel();
 
         // Close all connections and remove them from the registry
         synchronized (this.clientsRegistry) {
