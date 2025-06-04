@@ -9,6 +9,7 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
 import java.util.Queue;
@@ -139,7 +140,7 @@ public class ConnectionToServer implements Connection {
                         this.logger.debug("Consumer notified");
                     }
                 }
-            } catch (EOFException endOfFileException) {
+            } catch (EOFException | SocketException exception) {
                 this.logger.debug("Connection closed by the proxy server.");
                 // Close the connection
                 try {

@@ -12,6 +12,7 @@ import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.NoSuchElementException;
@@ -132,7 +133,7 @@ public class ConnectionToClient implements Connection {
                         this.logger.debug("Notified consumer for message from " + this.name);
                     }
                 }
-            } catch (EOFException endOfFileException) {
+            } catch (EOFException | SocketException endOfFileException) {
                 try {
                     this.logger.debug("Connection closed by " + this.name);
                     this.close();
