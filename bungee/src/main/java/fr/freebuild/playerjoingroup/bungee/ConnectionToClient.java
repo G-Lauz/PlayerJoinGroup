@@ -143,6 +143,12 @@ public class ConnectionToClient implements Connection {
             } catch (IOException exception) {
                 this.logger.severe("An error occured while reading the message from " + this.name);
                 this.logger.severe(exception.getMessage());
+
+                try {
+                    this.close();
+                } catch (Exception exc) {
+                    throw new RuntimeException(exc);
+                }
             }
         }
     }

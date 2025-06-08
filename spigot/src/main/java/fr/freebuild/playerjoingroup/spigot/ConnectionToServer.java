@@ -155,6 +155,17 @@ public class ConnectionToServer implements Connection {
 
             } catch (IOException error) {
                 this.logger.warning("An error occurred while reading the message from the proxy server: " + error.getMessage());
+
+                // Close the connection
+                try {
+                    this.dataInputStream.close();
+                    this.dataOutputStream.close();
+                    this.socket.close();
+
+                    isConnected.set(false);
+                } catch (IOException exception) {
+                    throw new RuntimeException(exception);
+                }
             }
         }
     }
