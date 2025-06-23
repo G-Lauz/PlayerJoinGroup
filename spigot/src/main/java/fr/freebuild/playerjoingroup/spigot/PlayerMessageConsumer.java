@@ -126,7 +126,10 @@ public class PlayerMessageConsumer implements MessageConsumer {
 
         if (player == null || !player.hasPermission("essentials.silentjoin")) {
             boolean hasPlayedBefore = offlinePlayer.hasPlayedBefore();
-            ConnectAction command = new ConnectAction(this.plugin, serverName, playerName, playerUUID, event, 1000);
+            // Use a timeout of 10 seconds to allow the player to join before sending the connect action
+            // This is intended for players with a higher ping.
+            // 10 seconds as been chosen to match a ping of 500ms to which, behond this value, Minecraft raises a timeout error.
+            ConnectAction command = new ConnectAction(this.plugin, serverName, playerName, playerUUID, event, 10000);
             this.actionExecutor.resolve(command, hasPlayedBefore);
         }
     }

@@ -50,7 +50,10 @@ public class PlayerJoinListener implements Listener {
             String eventName = EventType.SERVER_CONNECT.getValue();
 
             if (player == null || !player.hasPermission("essentials.silentjoin")) {
-                ConnectAction action = new ConnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 1000);
+                // Use a timeout of 10 seconds to allow the player to join before sending the connect action
+                // This is intended for players with a higher ping.
+                // 10 seconds as been chosen to match a ping of 500ms to which, behond this value, Minecraft raises a timeout error.
+                ConnectAction action = new ConnectAction(this.plugin, serverName, playerName, playerUUID, eventName, 10000);
                 this.plugin.getMessageManager().getActionExecutor().resolve(action, player.hasPlayedBefore());
             }
         }
